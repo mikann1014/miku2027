@@ -1,57 +1,91 @@
 import * as THREE from 'three';
 
+/**
+ * WireOverlayFactory
+ *
+ * ・任意のジオメトリに対してワイヤーフレーム表示を生成する
+ *
+ * 役割：
+ * - 装飾用のワイヤーライン生成
+ * - サイバー風ビジュアル強化
+ * - 深度制御による正しい重なり表現
+ *
+ * 特徴：
+ * 👉 WireframeGeometryを使用
+ * 👉 depthWrite = false（重要）
+ * 👉 depthTest 切り替え可能
+ */
 export class WireOverlayFactory {
+
     create(
-    geometry,
-    color,
-    opacity,
-    blending = THREE.NormalBlending,
-    options = {}
-) {
-    if (!geometry) return null;
+        geometry,
+        color,
+        opacity,
+        blending = THREE.NormalBlending,
+        options = {}
+    ) {
 
-    const wireGeometry =
-        new THREE.WireframeGeometry(
-            geometry
-        );
+        if (!geometry) return null;
 
-    const wireMaterial =
-        new THREE.LineBasicMaterial({
-            color,
-            transparent: true,
-            opacity,
-            blending,
+        /**
+         * 元ジオメトリ → ワイヤーフレーム化
+         */
+        const wireGeometry =
+            new THREE.WireframeGeometry(
+                geometry
+            );
 
-            /*
-             * wire は深度を書かない。
-             */
-            depthWrite: false,
+        /**
+         * ワイヤーマテリアル
+         */
+        const wireMaterial =
+            new THREE.LineBasicMaterial({
 
-            /*
-             * 重要:
-             * false にすると常に上に来る。
-             * 花に隠れてほしいので true。
-             */
-            depthTest: options.depthTest ?? true,
+                color,
+                transparent: true,
+                opacity,
+                blending,
 
-            depthFunc: THREE.LessEqualDepth
-        });
+                /*
+                 * wire は深度を書かない。
+                 * → 重なり順を壊さないため
+                 */
+                depthWrite: false,
 
-    const wire =
-        new THREE.LineSegments(
-            wireGeometry,
-            wireMaterial
-        );
+                /*
+                 * 重要:
+                 * false にすると常に前面に来る。
+                 * → 花や他オブジェクトに隠れてほしいので true。
+                 */
+                depthTest: options.depthTest ?? true,
 
-    wire.userData.isWire = true;
+                // 標準的な深度比較（<=）
+                depthFunc: THREE.LessEqualDepth
+            });
 
-    /*
-     * wire は地形装飾なので低め。
-     */
-    wire.renderOrder = options.renderOrder ?? 1;
+        /**
+         * LineSegmentsとして生成
+         */
+        const wire =
+            new THREE.LineSegments(
+                wireGeometry,
+                wireMaterial
+            );
 
-    wire.frustumCulled = false;
+        /**
+         * フラグ（他クラスで利用）
+         */
+        wire.userData.isWire = true;
 
-    return wire;
-}
+        /*
+         * wire は装飾レイヤなので低めのrenderOrder
+         */
+        wire.renderOrder =
+            options.renderOrder ?? 1;
+
+        // 常時描画（遠距離カット防止）
+        wire.frustumCulled = false;
+
+        return wire;
+    }
 }

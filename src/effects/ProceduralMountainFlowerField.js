@@ -1,5 +1,20 @@
 import * as THREE from 'three';
 
+
+/**
+ * ProceduralMountainFlowerField
+ *
+ * ・山に配置された多数の花（Points）を管理するクラス
+ * ・Canvasテクスチャで花の粒子を描画
+ * ・色ベースで発光のような演出を行う
+ *
+ * 主な機能：
+ * - バッチごとの生成（anchor対応）
+ * - 全体伝播（Propagation）
+ * - 全体パルス（Pulse）
+ */
+
+
 export class ProceduralMountainFlowerField {
     constructor(scene, options = {}) {
         this.scene = scene;

@@ -8,8 +8,25 @@ import { ExperiencePhaseDirector } from './experience/ExperiencePhaseDirector.js
 import { DevPlaybackPanel } from './debug/DevPlaybackPanel.js';
 
 import { normalizeLyricText } from './motion/LyricUtils.js';
-
 const APP_TOKEN = 'mq3mY1ymOq67ss5i';
+
+/**
+ * Application
+ *
+ * ・アプリケーション全体のシステム（レンダリング・音楽・UI・演出）の統合管理 * ・アプリケーション全体のエントリーポイント
+ *
+ * 主な機能：
+ * ・World / Music / UI / Motion / Experience の初期化
+ * ・入力イベントの管理
+ * ・再生開始フロー（タイトル → イントロ → 再生）
+ * ・歌詞・ビート・タイムライン同期の制御
+ * ・フレーム更新（アニメーションループ）
+ *
+ * 役割：
+ * 全てのサブシステムの「起点」となり、
+ * ゲームの進行状態と各モジュールを統合する
+ */
+
 
 class Application {
     constructor() {
@@ -43,7 +60,9 @@ class Application {
             );
 
         this.devPlaybackPanel = null;
-        this.enableDevSeek = true;
+        this.enableDevSeek =
+    new URLSearchParams(window.location.search)
+        .get('debug') === '1';
 
         this.currentSelectedItemId = 'flower1';
 

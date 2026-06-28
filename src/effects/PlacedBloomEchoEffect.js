@@ -1,21 +1,42 @@
 import * as THREE from 'three';
 
+/**
+して「波のような発光エコー」を発生させる * PlacedBloomEchoEffect
+ * ・中心から距離順に発火（遅延付き）
+ * ・スケールと色・透明度を一時的に変化させる
+ */
 export class PlacedBloomEchoEffect {
+
     constructor(options = {}) {
+
+        // 現在アクティブなエコー
         this.activeEchoes = [];
 
+        // 影響範囲
         this.radius = options.radius ?? 4.2;
+
+        // 1つのエコーの持続時間
         this.duration = options.duration ?? 0.72;
+
+        // スケール拡大量
         this.maxScaleBoost = options.maxScaleBoost ?? 0.36;
 
+        // 距離に応じた遅延
         this.echoDelayPerMeter =
             options.echoDelayPerMeter ?? 0.055;
 
+        // 色の強調倍率
         this.colorBoost =
             options.colorBoost ?? 1.9;
     }
 
+
+    /**
+     * エコー発火
+     * centerObject を中心に、対象オブジェクトへ波を広げる
+     */
     trigger(centerObject, placedObjects = []) {
+
         if (!centerObject) return;
 
         const centerPosition =
@@ -23,6 +44,7 @@ export class PlacedBloomEchoEffect {
 
         const targets = [];
 
+        // 対象抽出
         placedObjects.forEach(object => {
             if (!object) return;
 
@@ -31,15 +53,15 @@ export class PlacedBloomEchoEffect {
 
             if (!metadata) return;
 
+            // 対象IDチェック
             if (!this.isBloomableId(metadata.id)) {
                 return;
             }
 
             const distance =
-                object.position.distanceTo(
-                    centerPosition
-                );
+                object.position.distanceTo(centerPosition);
 
+            // 範囲外
             if (distance > this.radius) {
                 return;
             }
@@ -50,6 +72,7 @@ export class PlacedBloomEchoEffect {
             });
         });
 
+        // 対象がいない場合は中心を対象にする
         if (
             targets.length === 0 &&
             this.isBloomableId(
@@ -62,6 +85,7 @@ export class PlacedBloomEchoEffect {
             });
         }
 
+        // 距離順に処理
         targets
             .sort((a, b) => a.distance - b.distance)
             .forEach(target => {
@@ -72,20 +96,29 @@ export class PlacedBloomEchoEffect {
             });
     }
 
+
+    /**
+     * 個別エコー生成
+     */
     createEcho(object, distance) {
+
         if (!object) return;
 
+        // 基準スケール保持
         const baseScale =
             object.userData.bloomEchoBaseScale
                 ? object.userData.bloomEchoBaseScale.clone()
                 : object.scale.clone();
 
+        // 常に保存しておく
         object.userData.bloomEchoBaseScale =
             baseScale.clone();
 
+        // マテリアルのスナップショット取得
         const materialSnapshots =
             this.captureLineMaterials(object);
 
+        // エコー登録
         this.activeEchoes.push({
             object,
             baseScale,
@@ -96,19 +129,26 @@ export class PlacedBloomEchoEffect {
         });
     }
 
+
+    /**
+     * マテリアル状態の保存
+     */
     captureLineMaterials(object) {
+
         const snapshots = [];
 
         object.traverse(child => {
+
             const material =
                 child.userData?.lineMaterial ||
                 child.material;
 
+            // colorを持たないマテリアルは無視
             if (!material || !material.color) {
                 return;
             }
 
-            // 面マテリアルの透明0は対象外にする
+            // 完全透明メッシュは除外
             if (
                 child.isMesh &&
                 !child.userData?.isWire &&
@@ -130,11 +170,17 @@ export class PlacedBloomEchoEffect {
         return snapshots;
     }
 
+
+    /**
+     * フレーム更新
+     */
     update(delta = 0.016) {
+
         if (this.activeEchoes.length === 0) return;
 
         this.activeEchoes =
             this.activeEchoes.filter(echo => {
+
                 const {
                     object,
                     baseScale,
@@ -145,12 +191,15 @@ export class PlacedBloomEchoEffect {
                     return false;
                 }
 
+                // 時間進行
                 echo.life += delta;
 
+                // 遅延中
                 if (echo.life < echo.delay) {
                     return true;
                 }
 
+                // 正規化時間
                 const t =
                     THREE.MathUtils.clamp(
                         (echo.life - echo.delay) /
@@ -159,9 +208,11 @@ export class PlacedBloomEchoEffect {
                         1
                     );
 
+                // 波形（0→1→0）
                 const wave =
                     Math.sin(t * Math.PI);
 
+                // === スケール変化 ===
                 const scaleBoost =
                     1.0 + wave * this.maxScaleBoost;
 
@@ -169,14 +220,18 @@ export class PlacedBloomEchoEffect {
                     .copy(baseScale)
                     .multiplyScalar(scaleBoost);
 
+                // === マテリアル変化 ===
                 materialSnapshots.forEach(snapshot => {
+
                     const intensity =
                         1.0 + wave * this.colorBoost;
 
+                    // 色をブースト
                     snapshot.material.color
                         .copy(snapshot.baseColor)
                         .multiplyScalar(intensity);
 
+                    // 透明度調整
                     snapshot.material.opacity =
                         THREE.MathUtils.clamp(
                             snapshot.baseOpacity +
@@ -188,10 +243,14 @@ export class PlacedBloomEchoEffect {
                     snapshot.material.needsUpdate = true;
                 });
 
+                // === 終了処理 ===
                 if (t >= 1.0) {
+
+                    // 元に戻す
                     object.scale.copy(baseScale);
 
                     materialSnapshots.forEach(snapshot => {
+
                         snapshot.material.color.copy(
                             snapshot.baseColor
                         );
@@ -209,7 +268,12 @@ export class PlacedBloomEchoEffect {
             });
     }
 
+
+    /**
+     * エコー対象か判定
+     */
     isBloomableId(id) {
+
         if (!id) return false;
 
         return [
@@ -222,15 +286,24 @@ export class PlacedBloomEchoEffect {
         ].includes(id);
     }
 
+
+    /**
+     * 全エコー初期化
+     */
     clear() {
+
         this.activeEchoes.forEach(echo => {
+
             if (!echo.object) return;
 
+            // スケール復元
             echo.object.scale.copy(
                 echo.baseScale
             );
 
+            // マテリアル復元
             echo.materialSnapshots.forEach(snapshot => {
+
                 snapshot.material.color.copy(
                     snapshot.baseColor
                 );

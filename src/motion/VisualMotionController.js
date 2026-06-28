@@ -1,19 +1,55 @@
+/**
+ * VisualMotionController
+ *
+ * ・歌詞の進行に応： * ・歌詞の進行に応じたビジュアル演出（エフェクト）を制御する
+ * ・「青、かな」シーケンス（青→かな消失）
+ * ・データスモッグ（霧演出）
+ * ・ヒカリ（青い音符）出現演出
+ *
+ * 役割：
+ * 歌詞の内容とタイミングに応じて、
+ * 見た目の演出（Renderer側トリガー）を制御する
+ */
+
 import { combineText, getPhraseProgress } from './LyricUtils.js';
 
 export class VisualMotionController {
     constructor(worldRenderer) {
+        /**
+         * 初期化
+         *
+         * ・Rendererへの参照を保持
+         * ・各演出のトリガー済み状態を管理
+         */
+
         this.worldRenderer = worldRenderer;
 
+        // 「青」発火済み
         this.blueWordTriggered = false;
+
+        // 「かな」消失発火済み
         this.kanaVanishTriggered = false;
+
+        // スモッグ発火済み
         this.violinSmogTriggered = false;
 
-        // tone / 青い音符の出現は
-        // 「私はヒカリの中で歌った」で発火させる。
+        // ヒカリ（青い音符）発火済み
         this.hikariNoteTriggered = false;
     }
 
     update(context) {
+        /**
+         * フレーム更新処理
+         *
+         * 処理内容：
+         * ・各演出ハンドラを順に実行
+         *
+         * context:
+         * ・position       : 再生時間
+         * ・phrase         : 現在フレーズ
+         * ・normalizedText : 正規化済み歌詞
+         */
+
         this.handleBlueKanaSequence(context);
         this.handleViolinSmogTrigger(context);
         this.handleHikariNoteTrigger(context);
@@ -25,11 +61,24 @@ export class VisualMotionController {
         normalizedPhrase,
         normalizedWord
     }) {
+        /**
+         * 「青、かな」演出
+         *
+         * シーケンス：
+         * ・「青」で発光演出
+         * ・「かな」で文字消失
+         *
+         * 判定：
+         * ・フレーズに「青かな」が含まれるか
+         * ・単語 or 進行度でタイミングを判断
+         */
+
         const combinedText = combineText(
             normalizedPhrase,
             normalizedWord
         );
 
+        // 対象フレーズ判定
         const isBlueKanaPhrase =
             combinedText.includes('青、かな') ||
             combinedText.includes('青かな');
@@ -38,11 +87,15 @@ export class VisualMotionController {
             return;
         }
 
+        // フレーズ進行度（0〜1）
         const phraseProgress = getPhraseProgress(
             position,
             phrase
         );
 
+        // =========================
+        // 「青」タイミング
+        // =========================
         const isBlueTiming =
             normalizedWord.includes('青') ||
             phraseProgress >= 0.05;
@@ -55,6 +108,7 @@ export class VisualMotionController {
 
             console.log('[VisualMotion] Trigger: Blue word');
 
+            // Renderer側へ通知
             if (
                 this.worldRenderer &&
                 typeof this.worldRenderer.triggerBlueWord === 'function'
@@ -63,6 +117,9 @@ export class VisualMotionController {
             }
         }
 
+        // =========================
+        // 「かな」タイミング
+        // =========================
         const isKanaTiming =
             normalizedWord.includes('かな') ||
             normalizedWord.includes('な') ||
@@ -76,6 +133,7 @@ export class VisualMotionController {
 
             console.log('[VisualMotion] Trigger: Kana vanish');
 
+            // Renderer側へ通知
             if (
                 this.worldRenderer &&
                 typeof this.worldRenderer.triggerKanaVanish === 'function'
@@ -89,6 +147,17 @@ export class VisualMotionController {
         normalizedPhrase,
         normalizedWord
     }) {
+        /**
+         * データスモッグ演出
+         *
+         * 条件：
+         * ・特定フレーズ出現で一度だけ発火
+         *
+         * 対象：
+         * ・機械 / 奇怪ステップ / データスモッグ関連歌詞
+         */
+
+        // 既に発火済みなら処理しない
         if (this.violinSmogTriggered) return;
 
         const combinedText = combineText(
@@ -107,6 +176,7 @@ export class VisualMotionController {
 
         console.log('[VisualMotion] Trigger: Data Smog');
 
+        // Rendererへ通知
         if (
             this.worldRenderer &&
             typeof this.worldRenderer.triggerDataSmog === 'function'
@@ -121,6 +191,17 @@ export class VisualMotionController {
         normalizedPhrase,
         normalizedWord
     }) {
+        /**
+         * ヒカリ（青い音符）演出
+         *
+         * 条件：
+         * ・「私はヒカリの中で歌った」付近で発火
+         *
+         * タイミング：
+         * ・単語一致 または フレーズ進行度で判定
+         */
+
+        // 既に発火済みならスキップ
         if (this.hikariNoteTriggered) return;
 
         const combinedText = combineText(
@@ -128,6 +209,7 @@ export class VisualMotionController {
             normalizedWord
         );
 
+        // 対象フレーズ判定
         const isTargetPhrase =
             combinedText.includes('私はヒカリの中で歌った') ||
             combinedText.includes('ヒカリの中で歌った') ||
@@ -135,6 +217,7 @@ export class VisualMotionController {
 
         if (!isTargetPhrase) return;
 
+        // フレーズ進行度
         const phraseProgress = getPhraseProgress(
             position,
             phrase
@@ -151,6 +234,7 @@ export class VisualMotionController {
 
         console.log('[VisualMotion] Trigger: Blue note at 私はヒカリの中で歌った');
 
+        // Rendererへ通知
         if (
             this.worldRenderer &&
             typeof this.worldRenderer.triggerBlueNoteOnly === 'function'
@@ -159,4 +243,3 @@ export class VisualMotionController {
         }
     }
 }
-``

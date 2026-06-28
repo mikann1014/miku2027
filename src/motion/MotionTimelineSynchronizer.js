@@ -3,6 +3,17 @@ import {
     getPhraseProgress
 } from './LyricUtils.js';
 
+/**
+ * MotionTimelineSynchronizer
+ *
+ * ・再生 / Visual を統合 * ・再生位置（position）から「状態スナップショット」を復元する
+ * - 最終的に worldRenderer に適用
+ *
+ * 特徴：
+ * 即時状態再構築
+ * 完全な再現性
+ */
+
 export class MotionTimelineSynchronizer {
     constructor(worldRenderer, ui) {
         this.worldRenderer = worldRenderer;

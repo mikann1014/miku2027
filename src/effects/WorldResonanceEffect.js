@@ -1,5 +1,13 @@
 import * as THREE from 'three';
 
+
+/**
+ * ワールド共鳴エフェクト
+ * ・対象オブジェクトを「揺れ・拡縮・発光」で共鳴させる
+ * ・時間経過で自然に強弱をつける（エンベロープ制御）
+ */
+
+
 export class WorldResonanceEffect {
     constructor(scene, options = {}) {
         this.scene = scene;

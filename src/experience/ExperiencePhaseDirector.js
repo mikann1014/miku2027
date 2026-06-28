@@ -1,3 +1,11 @@
+
+/**
+ * ストーリー進行を管理するディレクター
+ * ・歌詞（フレーズ / 単語）をトリガーに進行
+ * ・ワールド演出・ミク動作・UIなどを制御
+ */
+
+
 export class ExperiencePhaseDirector {
     constructor(worldRenderer, ui) {
         this.worldRenderer = worldRenderer;
@@ -42,7 +50,7 @@ export class ExperiencePhaseDirector {
             voiceEchoNotesStarted: false,
 
             // =========================
-            // Ending sequence
+            // エンディング
             // =========================
             finalEndingSequenceStarted: false,
             endingTurnBStarted: false,
@@ -234,7 +242,6 @@ handleFirstAct(combined) {
     this.worldRenderer.setPlacementEnabled?.(true);
     this.ui?.showItemMenu?.();
 
-    // 1回目の小さなマーチは walk
     this.worldRenderer.setMikuMoveMode?.('walk');
 
     this.worldRenderer.setSkyPhase?.(
@@ -509,10 +516,8 @@ this.worldRenderer.triggerMelodyMountainBloom?.({
 ) {
     this.flags.lateMarchRunToWalkStarted = true;
 
-    // 2回目は late 用。走行・軌道演出側へ任せる
     this.worldRenderer.playLateMarchRunToWalk?.();
 
-    // 2回目は夜明け前の空に寄せる
     this.worldRenderer.setSkyPhase?.(
         'predawn',
         0.035
@@ -593,7 +598,6 @@ this.worldRenderer.triggerMelodyMountainBloom?.({
 }
 
         // =========================
-        // Final ending sequence
         // ここから最終エンディングへ入る
         // =========================
         if (
@@ -632,111 +636,91 @@ if (
     );
 }
         
-
-        // =========================
-        // Ending TurnB
-        // 「数多の思いを背負って歌った」付近でミクがこちらを向く
-        // =========================
-        // =========================
-// Ending TurnB
-// 「世界は終わりに向かっていくけれど」付近で
-// ミクがこちらを向く
-// =========================
-if (
-    !this.flags.endingTurnBStarted &&
-    (
-        combined.includes('世界は終わりに向かっていくけれど') ||
-        combined.includes('世界は終わりに向かっていく') ||
-        combined.includes('終わりに向かっていくけれど') ||
-        combined.includes('終わりに向かっていく')
-    )
-) {
-    this.flags.endingTurnBStarted = true;
-
-    this.worldRenderer.setSkyPhase?.('endingDawn', 0.025);
-    this.worldRenderer.playEndingMikuTurnB?.();
-
-    console.log(
-        '[Experience] Ending TurnB: Miku turns toward camera at world-ending phrase.'
-    );
-}
-
-       if (
-    !this.flags.finalBloomTriggered &&
-    combined.includes('僕らが描いた未来')
-) {
-    this.flags.finalBloomTriggered = true;
-    this.currentChapter = 'finalBloom';
-
-    this.worldRenderer.setSkyPhase?.('endingDawn', 0.025);
-
-    this.worldRenderer.placementManager?.bloomAllPlacedObjects?.();
-
-    console.log('[Experience] Final bloom.');
-}
-
-if (
-    !this.flags.goldDawnStarted &&
-    combined.includes('またいつか何万年が経って')
-) {
-    this.flags.goldDawnStarted = true;
-
-    this.worldRenderer.setSkyPhase?.('goldDawn', 0.025);
-
-    console.log(
-        '[Experience] Golden dawn started.'
-    );
-}
-
-if (
-    !this.flags.newCivilizationSkyStarted &&
-    combined.includes('新しい文明が生まれたら')
-) {
-    this.flags.newCivilizationSkyStarted = true;
-
-    this.worldRenderer.setSkyPhase?.('newCivilization', 0.025);
-
-    console.log(
-        '[Experience] New civilization dawn started.'
-    );
-}
-// 旧 ending note ascend は、最終エンディング中は発火させない
-if (
-    !this.flags.completeSkyStarted &&
-    (
-        combined.includes('きっと私のコエが鳴る') ||
-        combined.includes('私のコエが鳴る')
-    )
-) {
-    this.flags.completeSkyStarted = true;
-
-    this.worldRenderer.setSkyPhase?.('completeSky', 0.025);
-
     if (
-        this.flags.finalEndingSequenceStarted &&
-        !this.flags.finalPerspectiveLocked
+        !this.flags.endingTurnBStarted &&
+        (
+            combined.includes('世界は終わりに向かっていくけれど') ||
+            combined.includes('世界は終わりに向かっていく') ||
+            combined.includes('終わりに向かっていくけれど') ||
+            combined.includes('終わりに向かっていく')
+        )
     ) {
-        this.flags.finalPerspectiveLocked = true;
-
-        this.worldRenderer.controls?.startFinalSkyAdvance?.({
-            duration: 12.5,
-            forwardDistance: 95,
-            riseForwardDistance: 70,
-            upAmount: 52
-        });
+        this.flags.endingTurnBStarted = true;
+        this.worldRenderer.setSkyPhase?.('endingDawn', 0.025);
+        this.worldRenderer.playEndingMikuTurnB?.();
 
         console.log(
-            '[Experience] Final sky advance started at きっと私のコエが鳴る.'
+            '[Experience] Ending TurnB: Miku turns toward camera at world-ending phrase.'
         );
     }
 
-    console.log(
-        '[Experience] Complete sky started.'
-    );
+       if (
+            !this.flags.finalBloomTriggered &&
+            combined.includes('僕らが描いた未来')
+        ) {
+            this.flags.finalBloomTriggered = true;
+            this.currentChapter = 'finalBloom';
+            this.worldRenderer.setSkyPhase?.('endingDawn', 0.025);
+            this.worldRenderer.placementManager?.bloomAllPlacedObjects?.();
+
+            console.log('[Experience] Final bloom.');
+        }
+
+        if (
+            !this.flags.goldDawnStarted &&
+            combined.includes('またいつか何万年が経って')
+        ) {
+            this.flags.goldDawnStarted = true;
+            this.worldRenderer.setSkyPhase?.('goldDawn', 0.025);
+
+            console.log(
+                '[Experience] Golden dawn started.'
+            );
+        }
+
+        if (
+            !this.flags.newCivilizationSkyStarted &&
+            combined.includes('新しい文明が生まれたら')
+        ) {
+            this.flags.newCivilizationSkyStarted = true;
+            this.worldRenderer.setSkyPhase?.('newCivilization', 0.025);
+
+            console.log(
+                '[Experience] New civilization dawn started.'
+            );
+        }
+        if (
+            !this.flags.completeSkyStarted &&
+            (
+                combined.includes('きっと私のコエが鳴る') ||
+                combined.includes('私のコエが鳴る')
+            )
+        ) {
+            this.flags.completeSkyStarted = true;
+
+            this.worldRenderer.setSkyPhase?.('completeSky', 0.025);
+
+        if (
+            this.flags.finalEndingSequenceStarted &&
+            !this.flags.finalPerspectiveLocked
+        ) {
+            this.flags.finalPerspectiveLocked = true;
+            this.worldRenderer.controls?.startFinalSkyAdvance?.({
+                duration: 12.5,
+                forwardDistance: 95,
+                riseForwardDistance: 70,
+                upAmount: 52
+            });
+            console.log(
+            '[Experience] Final sky advance started at きっと私のコエが鳴る.'
+            );
+        }
+        console.log(
+            '[Experience] Complete sky started.'
+            );
 }
 
 // =========================
-// Ending title
 // 「あなたが託したコエが鳴る」でタイトル表示
 // =========================
 if (

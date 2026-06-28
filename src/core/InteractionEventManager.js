@@ -6,6 +6,10 @@ import { EphemeralBloomEffect } from '../effects/EphemeralBloomEffect.js';
 import { PlacedBloomEchoEffect } from '../effects/PlacedBloomEchoEffect.js';
 import { LeafDriftEffect } from '../effects/LeafDriftEffect.js';
 
+/**
+ * InteractionEventManager
+ * ポインター入力に応じて各種エフェクトを発火させる管理クラス
+ */
 export class InteractionEventManager {
     constructor(worldRenderer) {
         this.worldRenderer = worldRenderer;
@@ -14,8 +18,10 @@ export class InteractionEventManager {
         this.camera = worldRenderer.camera;
         this.renderer = worldRenderer.renderer;
 
+        // レイキャスト
         this.raycaster = new THREE.Raycaster();
 
+        // 各種エフェクト
         this.prismBurstEffect =
             new PrismBurstEffect(
                 worldRenderer.spawnManager,
@@ -75,6 +81,7 @@ export class InteractionEventManager {
                 }
             );
 
+        // クールダウン設定（ms）
         this.waterClickCooldownMs = 120;
         this.pathClickCooldownMs = 180;
         this.noteClickCooldownMs = 220;
@@ -82,6 +89,7 @@ export class InteractionEventManager {
         this.placedClickCooldownMs = 180;
         this.leafClickCooldownMs = 220;
 
+        // 最終クリック時刻
         this.lastWaterClickTime = 0;
         this.lastPathClickTime = 0;
         this.lastNoteClickTime = 0;
@@ -90,6 +98,9 @@ export class InteractionEventManager {
         this.lastLeafClickTime = 0;
     }
 
+    /**
+     * ポインターイベント処理
+     */
     handlePointerEvent(event) {
         if (!event) return false;
         if (!this.camera || !this.renderer) return false;
@@ -101,11 +112,13 @@ export class InteractionEventManager {
 
         const now = performance.now();
 
+        // レイキャスト設定
         this.raycaster.setFromCamera(
             pointer,
             this.camera
         );
 
+        // ノートクリック判定
         const noteConsumed =
             this.tryHandleBlueNoteClick(now);
 
@@ -113,6 +126,7 @@ export class InteractionEventManager {
             return true;
         }
 
+        // 設置オブジェクト判定
         const placedConsumed =
             this.tryHandlePlacedObjectClick(now);
 
@@ -120,12 +134,16 @@ export class InteractionEventManager {
             return true;
         }
 
+        // 地形クリック処理
         const surfaceResult =
             this.tryHandleTerrainClick(now);
 
         return surfaceResult.consumed;
     }
 
+    /**
+     * PointerEvent/TouchEventから正規化座標を取得
+     */
     getPointerFromEvent(event) {
         const clientX =
             event.clientX ??
@@ -156,40 +174,46 @@ export class InteractionEventManager {
         );
     }
 
+    /**
+     * 石・島などの判定
+     */
     isSteppingStoneLikeObject(object) {
-    if (!object) {
-        return false;
-    }
-
-    const names = [];
-
-    let current = object;
-
-    while (current) {
-        if (current.name) {
-            names.push(current.name);
+        if (!object) {
+            return false;
         }
 
-        if (current.userData?.surfaceType) {
-            names.push(current.userData.surfaceType);
+        const names = [];
+
+        let current = object;
+
+        while (current) {
+            if (current.name) {
+                names.push(current.name);
+            }
+
+            if (current.userData?.surfaceType) {
+                names.push(current.userData.surfaceType);
+            }
+
+            current = current.parent;
         }
 
-        current = current.parent;
+        const joined =
+            names.join(' ').toLowerCase();
+
+        return (
+            joined.includes('stepping_stone') ||
+            joined.includes('steppingstone') ||
+            joined.includes('stone_chunk') ||
+            joined.includes('island') ||
+            joined.includes('islet') ||
+            joined.includes('rock')
+        );
     }
 
-    const joined =
-        names.join(' ').toLowerCase();
-
-    return (
-        joined.includes('stepping_stone') ||
-        joined.includes('steppingstone') ||
-        joined.includes('stone_chunk') ||
-        joined.includes('island') ||
-        joined.includes('islet') ||
-        joined.includes('rock')
-    );
-}
-
+    /**
+     * ノートクリック処理
+     */
     tryHandleBlueNoteClick(now) {
         if (
             now - this.lastNoteClickTime <
@@ -236,6 +260,9 @@ export class InteractionEventManager {
         return true;
     }
 
+    /**
+     * 設置オブジェクトクリック処理
+     */
     tryHandlePlacedObjectClick(now) {
         const placedObjects =
             this.getPlacedObjects();
@@ -273,6 +300,7 @@ export class InteractionEventManager {
         const id =
             metadata?.id || '';
 
+        // 葉オブジェクトの場合
         if (id === 'Leaf') {
             return this.handleLeafClick(
                 rootObject,
@@ -280,6 +308,7 @@ export class InteractionEventManager {
             );
         }
 
+        // ブルーム対象オブジェクトの場合
         if (this.isBloomablePlacedObject(id)) {
             return this.handlePlacedBloomClick(
                 rootObject,
@@ -290,6 +319,9 @@ export class InteractionEventManager {
         return false;
     }
 
+    /**
+     * ヒットしたオブジェクトからルートオブジェクトを探索
+     */
     findPlacedRootObject(hitObject, placedObjects) {
         let current = hitObject;
 
@@ -304,6 +336,9 @@ export class InteractionEventManager {
         return null;
     }
 
+    /**
+     * 設置ブルーム処理
+     */
     handlePlacedBloomClick(rootObject, now) {
         if (
             now - this.lastPlacedClickTime <
@@ -325,6 +360,9 @@ export class InteractionEventManager {
         return true;
     }
 
+    /**
+     * 葉クリック処理
+     */
     handleLeafClick(rootObject, now) {
         if (
             now - this.lastLeafClickTime <
@@ -346,146 +384,151 @@ export class InteractionEventManager {
         return true;
     }
 
-    tryHandleTerrainClick(now) {
-    const terrainTargets =
-        this.getTerrainInteractionTargets();
-
-    if (
-        !Array.isArray(terrainTargets) ||
-        terrainTargets.length === 0
-    ) {
-        return {
-            consumed: false
-        };
-    }
-
-    this.scene.updateMatrixWorld(true);
-
-    const hits =
-        this.raycaster.intersectObjects(
-            terrainTargets,
-            false
-        );
-
-    if (!hits || hits.length === 0) {
-        return {
-            consumed: false
-        };
-    }
-
-    const validHit =
-        this.findBestTerrainHit(hits);
-
-    if (!validHit) {
-        return {
-            consumed: false
-        };
-    }
-
-    const surfaceType =
-        this.resolveSurfaceType(
-            validHit.object
-        );
-
-    /*
-     * 重要:
-     * 山では一時Ground bloomを出さない。
-     * 配置処理にクリックを渡すため consumed:false。
+    /**
+     * 地形クリック処理
      */
-    if (surfaceType === 'mountain') {
-        return {
-            consumed: false
-        };
-    }
+    tryHandleTerrainClick(now) {
+        const terrainTargets =
+            this.getTerrainInteractionTargets();
 
-    if (surfaceType === 'ground') {
-        this.handleGroundClick(
-            validHit,
-            now
-        );
+        if (
+            !Array.isArray(terrainTargets) ||
+            terrainTargets.length === 0
+        ) {
+            return {
+                consumed: false
+            };
+        }
 
-        return {
-            consumed: false
-        };
-    }
+        this.scene.updateMatrixWorld(true);
 
-    if (surfaceType === 'water') {
-        this.handleWaterClick(
-            validHit,
-            now
-        );
+        const hits =
+            this.raycaster.intersectObjects(
+                terrainTargets,
+                false
+            );
 
-        return {
-            consumed: false
-        };
-    }
+        if (!hits || hits.length === 0) {
+            return {
+                consumed: false
+            };
+        }
 
-    if (surfaceType === 'path') {
-        const consumed =
-            this.handlePathClick(
+        const validHit =
+            this.findBestTerrainHit(hits);
+
+        if (!validHit) {
+            return {
+                consumed: false
+            };
+        }
+
+        const surfaceType =
+            this.resolveSurfaceType(
+                validHit.object
+            );
+
+        // mountain はクリックを消費しない
+        if (surfaceType === 'mountain') {
+            return {
+                consumed: false
+            };
+        }
+
+        if (surfaceType === 'ground') {
+            this.handleGroundClick(
                 validHit,
                 now
             );
 
+            return {
+                consumed: false
+            };
+        }
+
+        if (surfaceType === 'water') {
+            this.handleWaterClick(
+                validHit,
+                now
+            );
+
+            return {
+                consumed: false
+            };
+        }
+
+        if (surfaceType === 'path') {
+            const consumed =
+                this.handlePathClick(
+                    validHit,
+                    now
+                );
+
+            return {
+                consumed
+            };
+        }
+
         return {
-            consumed
+            consumed: false
         };
     }
 
-    return {
-        consumed: false
-    };
-}
-
+    /**
+     * 地形インタラクション対象取得
+     */
     getTerrainInteractionTargets() {
-    const targets = [];
-    const seen = new Set();
+        const targets = [];
+        const seen = new Set();
 
-    const addTarget = object => {
-        if (!object) return;
-        if (!object.isMesh) return;
-        if (seen.has(object)) return;
+        const addTarget = object => {
+            if (!object) return;
+            if (!object.isMesh) return;
+            if (seen.has(object)) return;
 
-        if (object.userData?.isWire) return;
-        if (object.userData?.isWaterReflector) return;
-        if (object.userData?.isEphemeralBloomObject) return;
+            if (object.userData?.isWire) return;
+            if (object.userData?.isWaterReflector) return;
+            if (object.userData?.isEphemeralBloomObject) return;
 
-        const name =
-            (object.name || '').toLowerCase();
+            const name =
+                (object.name || '').toLowerCase();
 
-        if (name.includes('wire')) return;
-        if (name.includes('grid')) return;
-        if (name.includes('edge')) return;
-        if (name.includes('neon')) return;
-        if (name.includes('ephemeral')) return;
+            if (name.includes('wire')) return;
+            if (name.includes('grid')) return;
+            if (name.includes('edge')) return;
+            if (name.includes('neon')) return;
+            if (name.includes('ephemeral')) return;
 
-        const surfaceType =
-            this.resolveSurfaceType(object);
+            const surfaceType =
+                this.resolveSurfaceType(object);
 
-        if (
-            surfaceType !== 'water' &&
-            surfaceType !== 'path' &&
-            surfaceType !== 'ground' &&
-            surfaceType !== 'mountain'
-        ) {
-            return;
+            if (
+                surfaceType !== 'water' &&
+                surfaceType !== 'path' &&
+                surfaceType !== 'ground' &&
+                surfaceType !== 'mountain'
+            ) {
+                return;
+            }
+
+            object.userData.surfaceType = surfaceType;
+
+            seen.add(object);
+            targets.push(object);
+        };
+
+        if (this.scene) {
+            this.scene.traverse(object => {
+                addTarget(object);
+            });
         }
 
-        object.userData.surfaceType = surfaceType;
-
-        seen.add(object);
-        targets.push(object);
-    };
-
-    if (this.scene) {
-        this.scene.traverse(object => {
-            addTarget(object);
-        });
+        return targets;
     }
 
-    return targets;
-}
-
+    /**
+     * バリデーション用地形対象
+     */
     getTerrainValidationTargets() {
         return this.getTerrainInteractionTargets()
             .filter(object => {
@@ -500,89 +543,98 @@ export class InteractionEventManager {
             });
     }
 
+    /**
+     * サーフェスタイプ判定
+     */
     resolveSurfaceType(object) {
-    if (!object) {
+        if (!object) {
+            return 'unknown';
+        }
+
+        const existing =
+            object.userData?.surfaceType;
+
+        if (
+            existing === 'water' ||
+            existing === 'path' ||
+            existing === 'ground' ||
+            existing === 'mountain'
+        ) {
+            return existing;
+        }
+
+        const names = [];
+
+        let current = object;
+
+        while (current) {
+            if (current.name) {
+                names.push(current.name);
+            }
+
+            if (current.userData?.surfaceType) {
+                names.push(current.userData.surfaceType);
+            }
+
+            current = current.parent;
+        }
+
+        const material =
+            Array.isArray(object.material)
+                ? object.material[0]
+                : object.material;
+
+        if (material?.name) {
+            names.push(material.name);
+        }
+
+        const combinedName =
+            names.join(' ').toLowerCase();
+
+        if (
+            combinedName.includes('water') ||
+            combinedName.includes('lake')
+        ) {
+            return 'water';
+        }
+
+        if (
+            combinedName.includes('path') ||
+            combinedName.includes('road') ||
+            combinedName.includes('load')
+        ) {
+            return 'path';
+        }
+
+        if (
+            combinedName.includes('mountain') ||
+            combinedName.includes('mountains') ||
+            combinedName.includes('side_mountain') ||
+            combinedName.includes(
+                'horizon_mountain'
+            ) ||
+            combinedName.includes(
+                'ground_left_mountains'
+            ) ||
+            combinedName.includes(
+                'ground_right_mountains'
+            )
+        ) {
+            return 'mountain';
+        }
+
+        if (
+            combinedName.includes('ground') ||
+            combinedName.includes('land') ||
+            combinedName.includes('island') ||
+            combinedName.includes('stone')
+        ) {
+            return 'ground';
+        }
+
         return 'unknown';
     }
-
-    const existing =
-        object.userData?.surfaceType;
-
-    if (
-        existing === 'water' ||
-        existing === 'path' ||
-        existing === 'ground' ||
-        existing === 'mountain'
-    ) {
-        return existing;
-    }
-
-    const names = [];
-
-    let current = object;
-
-    while (current) {
-        if (current.name) {
-            names.push(current.name);
-        }
-
-        if (current.userData?.surfaceType) {
-            names.push(current.userData.surfaceType);
-        }
-
-        current = current.parent;
-    }
-
-    const material =
-        Array.isArray(object.material)
-            ? object.material[0]
-            : object.material;
-
-    if (material?.name) {
-        names.push(material.name);
-    }
-
-    const combinedName =
-        names.join(' ').toLowerCase();
-
-    if (
-        combinedName.includes('water') ||
-        combinedName.includes('lake')
-    ) {
-        return 'water';
-    }
-
-    if (
-        combinedName.includes('path') ||
-        combinedName.includes('road') ||
-        combinedName.includes('load')
-    ) {
-        return 'path';
-    }
-
-    if (
-        combinedName.includes('mountain') ||
-        combinedName.includes('mountains') ||
-        combinedName.includes('side_mountain') ||
-        combinedName.includes('horizon_mountain') ||
-        combinedName.includes('ground_left_mountains') ||
-        combinedName.includes('ground_right_mountains')
-    ) {
-        return 'mountain';
-    }
-
-    if (
-        combinedName.includes('ground') ||
-        combinedName.includes('land') ||
-        combinedName.includes('island') ||
-        combinedName.includes('stone')
-    ) {
-        return 'ground';
-    }
-
-    return 'unknown';
-}
-
+    
     findBestTerrainHit(hits) {
     const validHits =
         hits.filter(hit => {

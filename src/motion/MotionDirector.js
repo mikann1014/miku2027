@@ -4,6 +4,23 @@ import { InteractionMotionController } from './InteractionMotionController.js';
 import { MikuMotionController } from './MikuMotionController.js';
 import { MotionTimelineSynchronizer } from './MotionTimelineSynchronizer.js';
 
+/**
+ * MotionDirector
+ *
+ * ・歌詞の進行に応 / インタラクション / ミクの動作を分離して管理 * ・歌詞の進行に応じた各種モーション制御を統括するディレクター
+ * ・タイムラインとの同期（シーク対応）を行う
+ *
+ * 主な機能：
+ * ・歌詞テキストの正規化とコンテキスト生成
+ * ・各モーションコントローラへの更新ディスパッチ
+ * ・タイムライン同期（途中再生・ジャンプ対応）
+ * ・スナップショットを各コントローラへ適用
+ *
+ * 役割：
+ * 「歌詞の状態」→「各演出・動作」への橋渡しを行い、
+ * シーン全体の演出タイミングを一元管理する
+ */
+
 export class MotionDirector {
     constructor(worldRenderer, ui) {
         this.worldRenderer = worldRenderer;

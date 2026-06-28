@@ -4,6 +4,21 @@ import { CyberWireMaterialApplier } from '../spawn/CyberWireMaterialApplier.js';
 import { WaterRippleController } from '../effects/WaterRippleController.js';
 import { PlacedPlantMaterialPolicy } from '../materials/PlacedPlantMaterialPolicy.js';
 
+
+/**
+ * SpawnManager
+ *
+ * ・モデル生成の中枢
+ * ・clone → マテリアル処理 → metadata付与 → scene追加
+ *
+ * 主な役割：
+ * - モデル登録 / 複製
+ * - サイバーwire化
+ * - 植物の深度対策
+ * - ripple生成
+ * - 
+*/
+
 export class SpawnManager {
     constructor(scene) {
         this.scene = scene;

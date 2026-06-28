@@ -12,6 +12,18 @@ import { SteppingStoneGenerator } from '../terrain/generators/SteppingStoneGener
 import { SideMountainGenerator } from '../terrain/generators/SideMountainGenerator.js';
 import { HorizonMountainGenerator } from '../terrain/generators/HorizonMountainGenerator.js';
 
+/**
+ * ProceduralTerrainManager
+ *
+ * ・地形（terrain）全体を管理するクラス
+ * ・チャンク生成 / スクロール / フェード / 背景山制御を担当
+ *
+ * 構造：
+ *  - チャンク方式（前後に再利用）
+ *  - 水 / 道 / 島 / 石 / 山 を各Generatorで生成
+ *  - フェード・背景制御は別Controllerに委譲
+ */
+
 export class ProceduralTerrainManager {
     constructor(scene, options = {}) {
         this.scene = scene;

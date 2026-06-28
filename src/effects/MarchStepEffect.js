@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 
+
+/**
+ * 足跡を連続生成するマーチステップエフェクト
+ * ・左右交互の足跡を前方へ配置
+ * ・時間差で出現→拡大→フェードアウト
+ */
+
 export class MarchStepEffect {
     constructor(scene, options = {}) {
         this.scene = scene;

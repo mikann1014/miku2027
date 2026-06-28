@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import { WordImpactEffectManager } from './WordImpactEffectManager.js';
 
+
+/**
+間奏演出で使用する「ワード降下 → クリック → 集合」エフェクト * InterludeWordEffect
+ * ・ワードはカメラ前方に生成され、上空から落下する
+ * ・着地後、一定時間クリック可能
+ * ・クリックされたワードは外部エフェクトを発動
+ * ・最終的にワード群は指定位置（ミク形）へ収束
+ */
+
+
 export class InterludeWordEffect {
     constructor(worldRenderer, options = {}) {
         this.worldRenderer = worldRenderer;

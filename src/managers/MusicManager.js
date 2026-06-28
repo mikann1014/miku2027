@@ -1,12 +1,24 @@
 import { Player } from 'textalive-app-api';
 
+/**
+ * MusicManager
+ *
+ * ・TextAlive Player のラッパークラス
+ * ・楽曲のロード / 再生 / シーク / 解析（歌詞・コーラス）を管理
+ *
+ * フロー：
+ *   init → prepareSong → startPreparedSong → update
+ */
 export class MusicManager {
+
     constructor(appToken, mediaElementSelector) {
+
         this.appToken = appToken || '';
         this.mediaElementSelector = mediaElementSelector || '#media';
 
         this.player = null;
 
+        // --- 状態 ---
         this.isAppReady = false;
         this.isLoaded = false;
         this.isPrepared = false;
@@ -15,27 +27,37 @@ export class MusicManager {
 
         this.preparePromise = null;
 
+        // コールバック
         this.callbacks = {};
     }
 
+
+    /**
+     * 初期化
+     */
     init(callbacks) {
+
         this.callbacks = callbacks || {};
 
+        // --- audio要素取得 or 生成 ---
         let audioElement =
-            document.querySelector(
-                this.mediaElementSelector
-            );
+            document.querySelector(this.mediaElementSelector);
 
         if (!audioElement) {
             audioElement = document.createElement('audio');
+
             audioElement.id = this.mediaElementSelector.replace('#', '');
             audioElement.controls = false;
+
+            // 見えないようにする
             audioElement.style.position = 'absolute';
             audioElement.style.opacity = '0';
             audioElement.style.pointerEvents = 'none';
+
             document.body.appendChild(audioElement);
         }
 
+        // --- Player生成 ---
         this.player = new Player({
             app: {
                 token: this.appToken
@@ -47,67 +69,45 @@ export class MusicManager {
             mediaAutoplay: false
         });
 
+        // --- イベント登録 ---
         this.player.addListener({
+
             onAppReady: () => {
-                console.log('[MusicManager] App Ready');
-
                 this.isAppReady = true;
-
                 this.callbacks.onAppReady?.();
             },
 
             onSongLoad: song => {
-                const songTitle =
-                    song && typeof song.title === 'string'
-                        ? song.title
-                        : 'Success';
-
-                console.log(
-                    '[MusicManager] Song loaded:',
-                    songTitle
-                );
-
                 this.isLoaded = true;
             },
 
             onVideoReady: video => {
-                console.log(
-                    '[MusicManager] Video Ready:',
-                    video ? video.title : ''
-                );
-
                 this.callbacks.onVideoReady?.(video);
             },
 
             onTextLoad: () => {
-                console.log('[MusicManager] Lyrics loaded');
-
                 this.callbacks.onTextLoad?.(
                     this.player.video
                 );
             },
 
             onPlay: () => {
-                console.log('[MusicManager] Playback started');
-
                 this.isUserPaused = false;
             },
 
-            onPause: () => {
-                console.log('[MusicManager] Playback paused');
-            },
+            onPause: () => {},
 
+            /**
+             * 時間更新（最重要）
+             */
             onTimeUpdate: position => {
+
                 if (
                     typeof position !== 'number' ||
                     !Number.isFinite(position)
-                ) {
-                    return;
-                }
+                ) return;
 
-                if (!this.player || !this.player.video) {
-                    return;
-                }
+                if (!this.player || !this.player.video) return;
 
                 const rawDuration =
                     this.player.video.duration;
@@ -119,23 +119,22 @@ export class MusicManager {
                         ? rawDuration
                         : 1;
 
+                // 進行率（0〜1）
                 const progress =
                     Math.max(
                         0,
-                        Math.min(
-                            position / duration,
-                            1
-                        )
+                        Math.min(position / duration, 1)
                     );
 
                 let isChorus = false;
+                let currentWord = null;
 
+                // コーラス判定
                 try {
                     isChorus = !!this.player.findChorus(position);
                 } catch {}
 
-                let currentWord = null;
-
+                // 単語取得
                 try {
                     currentWord = this.player.findWord(position);
                 } catch {}
@@ -150,21 +149,16 @@ export class MusicManager {
         });
     }
 
+
+    /**
+     * 楽曲準備
+     */
     async prepareSong() {
-        if (!this.player) {
-            console.warn('[MusicManager] prepareSong ignored: player is null.');
-            return;
-        }
 
-        if (!this.isAppReady) {
-            console.warn('[MusicManager] prepareSong ignored: app is not ready.');
-            return;
-        }
+        if (!this.player) return;
+        if (!this.isAppReady) return;
 
-        if (this.isPrepared) {
-            console.log('[MusicManager] Song already prepared.');
-            return;
-        }
+        if (this.isPrepared) return;
 
         if (this.preparePromise) {
             return this.preparePromise;
@@ -180,16 +174,19 @@ export class MusicManager {
         }
     }
 
+
+    /**
+     * 内部準備処理
+     */
     async prepareSongInternal() {
+
+        // AbortErrorを無視
         const hideAbortError = event => {
+
             if (
                 event.reason &&
                 event.reason.name === 'AbortError'
             ) {
-                console.log(
-                    '[MusicManager] Muted internal browser AbortError safely.'
-                );
-
                 event.preventDefault();
             }
         };
@@ -200,14 +197,14 @@ export class MusicManager {
         );
 
         try {
-            console.log('[MusicManager] Preparing song URL...');
-
+            // 楽曲ロード
             await this.player.createFromSongUrl(
                 'https://piapro.jp/t/B3yJ/20251215061727'
             );
 
             await this.waitUntilSongLoaded();
 
+            // 少し待つ（安定化）
             await new Promise(resolve => {
                 setTimeout(resolve, 250);
             });
@@ -216,20 +213,15 @@ export class MusicManager {
 
             this.callbacks.onLoadComplete?.();
 
-            console.log(
-                '[MusicManager] Song prepared. Waiting for user start.'
-            );
         } catch (error) {
-            console.error(
-                '[MusicManager] Song preparation failed:',
-                error
-            );
 
             this.isPrepared = false;
             this.preparePromise = null;
 
             throw error;
+
         } finally {
+
             setTimeout(() => {
                 window.removeEventListener(
                     'unhandledrejection',
@@ -239,9 +231,16 @@ export class MusicManager {
         }
     }
 
+
+    /**
+     * ロード待機
+     */
     waitUntilSongLoaded() {
+
         return new Promise(resolve => {
+
             const interval = setInterval(() => {
+
                 if (
                     this.isLoaded &&
                     this.player &&
@@ -250,55 +249,48 @@ export class MusicManager {
                     clearInterval(interval);
                     resolve();
                 }
+
             }, 50);
         });
     }
 
+
+    /**
+     * 再生開始
+     */
     async startPreparedSong() {
-        if (!this.player) {
-            console.warn('[MusicManager] startPreparedSong ignored: player is null.');
-            return;
-        }
+
+        if (!this.player) return;
 
         if (!this.isPrepared) {
-            console.log('[MusicManager] Song not prepared. Preparing first.');
             await this.prepareSong();
         }
 
-        console.log('[MusicManager] Requesting play...');
-
         try {
+
             await this.player.requestPlay();
 
-            console.log('[MusicManager] requestPlay success');
         } catch (error) {
-            if (error.name === 'AbortError') {
-                console.warn(
-                    '[MusicManager] requestPlay interrupted. Retrying in 300ms...'
-                );
 
+            if (error.name === 'AbortError') {
+
+                // リトライ
                 await new Promise(resolve => {
                     setTimeout(resolve, 300);
                 });
 
                 await this.player.requestPlay();
 
-                console.log('[MusicManager] Retry requestPlay success');
                 return;
             }
-
-            console.error(
-                '[MusicManager] requestPlay failed:',
-                error
-            );
 
             throw error;
         }
     }
 
+
     requestPlay() {
         if (!this.player) return;
-
         this.player.requestPlay();
     }
 
@@ -309,18 +301,20 @@ export class MusicManager {
         this.player.requestPause();
     }
 
+
+    /**
+     * シーク
+     */
     seekTo(position) {
+
         if (!this.player) return;
 
         if (
             typeof position !== 'number' ||
             !Number.isFinite(position)
-        ) {
-            return;
-        }
+        ) return;
 
-        const duration =
-            this.getDuration();
+        const duration = this.getDuration();
 
         const target =
             Math.max(
@@ -335,15 +329,15 @@ export class MusicManager {
 
         try {
             this.player.requestMediaSeek(target);
-        } catch (error) {
-            console.warn(
-                '[MusicManager] seekTo failed:',
-                error
-            );
-        }
+        } catch {}
     }
 
+
+    /**
+     * 再生位置取得
+     */
     getPosition() {
+
         const position =
             this.player?.timer?.position ??
             this.player?.mediaPosition ??
@@ -355,7 +349,12 @@ export class MusicManager {
             : 0;
     }
 
+
+    /**
+     * 再生時間取得
+     */
     getDuration() {
+
         const duration =
             this.player?.video?.duration;
 
@@ -365,13 +364,21 @@ export class MusicManager {
             : 0;
     }
 
+
+    /**
+     * フル開始
+     */
     async startAndPlay() {
+
         await this.prepareSong();
-        
         await this.startPreparedSong();
     }
 
+
+    /**
+     * 現在時間（別名）
+     */
     getCurrentTime() {
-    return this.getPosition();
-}
+        return this.getPosition();
+    }
 }

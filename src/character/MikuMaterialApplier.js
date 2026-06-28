@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 
+/**
+ * MikuMaterialApplier
+ * モデルに対してマテリアルを適用し、
+ * 黒ベース + ワイヤーフレーム構成に変換するクラス
+ */
 export class MikuMaterialApplier {
-            constructor() {
+    constructor() {
+        // 部位ごとのカラー定義
         this.mikuColors = {
             tie: 0x00D6FF,
             skin: 0xFFB6C1,
@@ -20,17 +26,22 @@ export class MikuMaterialApplier {
         };
     }
 
+    /**
+     * モデルに対してマテリアル適用処理を行う
+     */
     apply(model) {
         if (!model) {
             return;
         }
 
+        // 既存のワイヤーメッシュを削除
         this.removeExistingWireMeshes(model);
 
         const newLinesToAppend = [];
         const lineMaterialsCache = new Map();
 
         model.traverse(node => {
+            // Mesh以外 / マテリアル無し / ワイヤー用ノードはスキップ
             if (
                 !node.isMesh ||
                 !node.material ||
@@ -43,32 +54,34 @@ export class MikuMaterialApplier {
             node.castShadow = false;
             node.receiveShadow = false;
 
+            // マテリアル取得（配列の場合は先頭）
             const sourceMaterial =
                 Array.isArray(node.material)
                     ? node.material[0]
                     : node.material;
 
+            // マテリアル名を小文字で取得
             const materialName =
                 String(sourceMaterial?.name || '').toLowerCase();
 
+            // 名前から色を決定
             const lineColor =
                 this.resolveColorFromMaterialName(materialName);
 
-            // =========================
-            // ミク本体
-            // 黒・不透明・Zを書く
-            // =========================
+            // 本体メッシュは黒マテリアルに置き換え
             node.material = this.createBlackBodyMaterial();
 
-            // 不透明本体は通常描画で先に描く
+            // 本体を先に描画
             node.renderOrder = -100;
 
+            // ワイヤーフレーム用マテリアルを取得または生成
             const lineMaterial =
                 this.getOrCreateLineMaterial(
                     lineMaterialsCache,
                     lineColor
                 );
 
+            // ワイヤーメッシュ生成
             const lineMesh =
                 this.createLineMesh(
                     node,
@@ -81,11 +94,15 @@ export class MikuMaterialApplier {
             }
         });
 
+        // 親にワイヤーメッシュを追加
         newLinesToAppend.forEach(item => {
             item.parent.add(item.mesh);
         });
     }
 
+    /**
+     * 既存のワイヤーメッシュを削除する
+     */
     removeExistingWireMeshes(model) {
         const wires = [];
 
@@ -98,6 +115,7 @@ export class MikuMaterialApplier {
         wires.forEach(node => {
             node.parent?.remove(node);
 
+            // マテリアルの解放
             if (node.material) {
                 if (Array.isArray(node.material)) {
                     node.material.forEach(material => {
@@ -108,10 +126,13 @@ export class MikuMaterialApplier {
                 }
             }
 
-            // geometry は本体と共有している可能性があるので dispose しない
+            // geometry は共有の可能性があるため破棄しない
         });
     }
 
+    /**
+     * 黒の本体マテリアルを生成
+     */
     createBlackBodyMaterial() {
         return new THREE.MeshBasicMaterial({
             color: 0x000000,
@@ -133,9 +154,11 @@ export class MikuMaterialApplier {
         });
     }
 
+    /**
+     * マテリアル名から対応するカラーを取得
+     */
     resolveColorFromMaterialName(materialName) {
-        const name =
-            materialName || '';
+        const name = materialName || '';
 
         if (
             name.includes('hairaccessary') ||
@@ -196,9 +219,13 @@ export class MikuMaterialApplier {
             return this.mikuColors.belt;
         }
 
+        // デフォルトカラー
         return 0x00D6FF;
     }
 
+    /**
+     * ワイヤーフレーム用マテリアルを取得または生成
+     */
     getOrCreateLineMaterial(cache, color) {
         if (!cache.has(color)) {
             cache.set(
@@ -226,14 +253,17 @@ export class MikuMaterialApplier {
         return cache.get(color);
     }
 
+    /**
+     * ワイヤーフレームメッシュを生成
+     */
     createLineMesh(node, lineMaterial, rootModel) {
         if (!node || !node.geometry) {
             return null;
         }
 
-        const parent =
-            node.parent || rootModel;
+        const parent = node.parent || rootModel;
 
+        // スキンメッシュの場合
         if (node.isSkinnedMesh) {
             const skinnedLineMesh =
                 new THREE.SkinnedMesh(
@@ -241,34 +271,19 @@ export class MikuMaterialApplier {
                     lineMaterial
                 );
 
-            skinnedLineMesh.skeleton =
-                node.skeleton;
+            skinnedLineMesh.skeleton = node.skeleton;
 
-            skinnedLineMesh.bindMatrix.copy(
-                node.bindMatrix
-            );
+            skinnedLineMesh.bindMatrix.copy(node.bindMatrix);
+            skinnedLineMesh.bindMatrixInverse.copy(node.bindMatrixInverse);
 
-            skinnedLineMesh.bindMatrixInverse.copy(
-                node.bindMatrixInverse
-            );
-
-            skinnedLineMesh.position.copy(
-                node.position
-            );
-
-            skinnedLineMesh.rotation.copy(
-                node.rotation
-            );
-
-            skinnedLineMesh.scale.copy(
-                node.scale
-            );
+            skinnedLineMesh.position.copy(node.position);
+            skinnedLineMesh.rotation.copy(node.rotation);
+            skinnedLineMesh.scale.copy(node.scale);
 
             skinnedLineMesh.frustumCulled = false;
             skinnedLineMesh.castShadow = false;
             skinnedLineMesh.receiveShadow = false;
 
-            // ワイヤーは黒本体の上に表示
             skinnedLineMesh.renderOrder = 10;
             skinnedLineMesh.userData.isWire = true;
 
@@ -278,6 +293,7 @@ export class MikuMaterialApplier {
             };
         }
 
+        // 通常メッシュの場合
         const lineMesh =
             new THREE.Mesh(
                 node.geometry,

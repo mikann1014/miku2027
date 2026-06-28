@@ -1,10 +1,30 @@
 import * as THREE from 'three';
 
+/**
+ * TerrainMaterialFactory
+ *
+ * ・地形用マテリアルを生成するファクトリクラス
+ *
+ * 役割：
+ * - 水 / 道 / 地面 / 遠景山 のマテリアル統一生成
+ * - 深度・透明描画のルールを一元管理
+ *
+ * 特徴：
+ * 👉 基本は MeshBasicMaterial（軽量・非ライティング）
+ * 👉 depthWrite 制御で透明描画破綻を防ぐ
+ */
 export class TerrainMaterialFactory {
+
     constructor(options = {}) {
         this.options = options;
     }
 
+
+    /**
+     * =========================
+     * ✅ 一括生成
+     * =========================
+     */
     createMaterials() {
         return {
             waterMaterial: this.createWaterMaterial(),
@@ -14,14 +34,23 @@ export class TerrainMaterialFactory {
         };
     }
 
+
+    /**
+     * =========================
+     * ✅ 水マテリアル
+     * =========================
+     */
     createWaterMaterial() {
+
         return new THREE.MeshBasicMaterial({
             color: this.options.waterColor ?? 0x00142f,
             transparent: true,
             opacity: this.options.waterBaseOpacity ?? 0.34,
 
-            // 透明な水面は深度を書かない。
-            // これで音符・花・草が水面の下に沈んだように見える問題を抑える。
+            /**
+             * 透明な水面は深度を書かない。
+             * → 水の下にあるオブジェクトが消えてしまう問題を防ぐ
+             */
             depthWrite: false,
             depthTest: true,
 
@@ -30,14 +59,23 @@ export class TerrainMaterialFactory {
         });
     }
 
+
+    /**
+     * =========================
+     * ✅ 道マテリアル
+     * =========================
+     */
     createPathMaterial() {
+
         return new THREE.MeshBasicMaterial({
             color: this.options.pathColor ?? 0x11141b,
             transparent: true,
             opacity: this.options.pathBaseOpacity ?? 0.92,
 
-            // 透明な道面が深度を書き込むと、
-            // 手前の半透明面が奥のオブジェクトを隠すことがある。
+            /**
+             * 透明な道は深度を書かない。
+             * → 半透明レイヤ同士の重なり破綻防止
+             */
             depthWrite: false,
             depthTest: true,
 
@@ -46,14 +84,23 @@ export class TerrainMaterialFactory {
         });
     }
 
+
+    /**
+     * =========================
+     * ✅ 地面マテリアル
+     * =========================
+     */
     createGroundMaterial() {
+
         return new THREE.MeshBasicMaterial({
             color: this.options.groundColor ?? 0x06130f,
             transparent: true,
             opacity: this.options.groundBaseOpacity ?? 0.9,
 
-            // 透明地面も深度を書かない。
-            // サイバー系ワイヤー表示を優先する。
+            /**
+             * 地面も深度を書かない
+             * → ワイヤーやエフェクトを優先表示
+             */
             depthWrite: false,
             depthTest: true,
 
@@ -62,13 +109,23 @@ export class TerrainMaterialFactory {
         });
     }
 
+
+    /**
+     * =========================
+     * ✅ 遠景山マテリアル
+     * =========================
+     */
     createHorizonMountainMaterial() {
+
         return new THREE.MeshBasicMaterial({
             color: this.options.horizonMountainColor ?? 0x030708,
             transparent: true,
             opacity: this.options.horizonMountainOpacity ?? 0.94,
 
-            // 遠景山は背景として使うので、基本は深度を書いてOK。
+            /**
+             * 遠景は“背景”
+             * → 深度を書いてOK（正しい奥行きを維持）
+             */
             depthWrite: true,
             depthTest: true,
 

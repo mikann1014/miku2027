@@ -1,9 +1,23 @@
 import { combineText, getPhraseProgress } from './LyricUtils.js';
 
+/**
+ * MikuMotionController
+ *
+ * ・歌詞タイミングに応じてミクのモーションを制御
+ *
+ * 主な流れ：
+ *   walk → run → walk → collapsePrep → collapseNow
+ *
+ * 役割：
+ * ・楽曲のストーリー進行をモーションとして表現
+ */
 export class MikuMotionController {
+
     constructor(worldRenderer) {
+
         this.worldRenderer = worldRenderer;
 
+        // --- 状態フラグ（多重発火防止） ---
         this.runTriggered = false;
         this.walkBackTriggered = false;
         this.walkToStopTriggered = false;
@@ -12,7 +26,12 @@ export class MikuMotionController {
         this.collapseTriggered = false;
     }
 
+
+    /**
+     * 毎フレーム更新
+     */
     update(context) {
+
         this.handleRunTrigger(context);
         this.handleWalkBackTrigger(context);
         this.handleWalkToStopTrigger(context);
@@ -20,12 +39,20 @@ export class MikuMotionController {
         this.handleCollapseTrigger(context);
     }
 
+
+    /**
+     * =========================
+     * 走り出す（Run）
+     * 「オンガクだ」
+     * =========================
+     */
     handleRunTrigger({
         position,
         phrase,
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.runTriggered) return;
 
         const combinedText =
@@ -44,11 +71,11 @@ export class MikuMotionController {
         }
 
         const phraseProgress =
-            getPhraseProgress(
-                position,
-                phrase
-            );
+            getPhraseProgress(position, phrase);
 
+        /**
+         * 「だ」で走り出す
+         */
         const isDaTiming =
             normalizedWord === 'だ' ||
             normalizedWord.includes('オンガクだ') ||
@@ -60,17 +87,23 @@ export class MikuMotionController {
 
         this.runTriggered = true;
 
-        console.log('[MikuMotion] Trigger: Run at "だ"');
-
         this.worldRenderer?.setMikuMoveMode?.('run');
     }
 
+
+    /**
+     * =========================
+     * 歩きに戻る（Walk）
+     * ナミダ系フレーズ
+     * =========================
+     */
     handleWalkBackTrigger({
         position,
         phrase,
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.walkBackTriggered) return;
         if (!this.runTriggered) return;
 
@@ -85,15 +118,15 @@ export class MikuMotionController {
         }
 
         const phraseProgress =
-            getPhraseProgress(
-                position,
-                phrase
-            );
+            getPhraseProgress(position, phrase);
 
         const isNamidaTiming =
             normalizedWord.includes('ナミダ') ||
             normalizedWord.includes('涙');
 
+        /**
+         * フレーズ開始でもOK（確実に戻す）
+         */
         const isPhraseStartTiming =
             phraseProgress >= 0.0;
 
@@ -106,35 +139,37 @@ export class MikuMotionController {
 
         this.walkBackTriggered = true;
 
-        console.log(
-            '[MikuMotion] Trigger: Walk Back at ナミダ phrase',
-            {
-                normalizedPhrase,
-                normalizedWord,
-                phraseProgress
-            }
-        );
-
         this.worldRenderer?.setMikuMoveMode?.('walk');
     }
 
+
+    /**
+     * =========================
+     * 停止（今回は未使用）
+     * =========================
+     */
     handleWalkToStopTrigger({
         normalizedPhrase
     }) {
+
         if (this.walkToStopTriggered) return;
 
-        // 「あなたはどんなカタチ」では止めない。
+        // 「あなたはどんなカタチ」では止めない
         if (
             normalizedPhrase.includes('あなたはどんなカタチ')
         ) {
             return;
         }
 
-        // 今回の崩壊前停止は collapsePrep に統一する。
+        // 停止は collapsePrep に統一
     }
 
+
     /**
-     * 「あなたはもう」で StopB。
+     * =========================
+     * 崩壊準備（StopB）
+     * 「あなたはもう」
+     * =========================
      */
     handleCollapsePrepTrigger({
         position,
@@ -142,6 +177,7 @@ export class MikuMotionController {
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.collapsePrepTriggered) return;
 
         const isTargetPhrase =
@@ -154,11 +190,11 @@ export class MikuMotionController {
         }
 
         const phraseProgress =
-            getPhraseProgress(
-                position,
-                phrase
-            );
+            getPhraseProgress(position, phrase);
 
+        /**
+         * 「あなた」または「もう」で停止開始
+         */
         const isAnataMouTiming =
             normalizedWord.includes('あなた') ||
             normalizedWord.includes('もう') ||
@@ -170,20 +206,15 @@ export class MikuMotionController {
 
         this.collapsePrepTriggered = true;
 
-        console.log(
-            '[MikuMotion] Trigger: Collapse Prep at あなたはもう',
-            {
-                normalizedPhrase,
-                normalizedWord,
-                phraseProgress
-            }
-        );
-
         this.worldRenderer?.setMikuMoveMode?.('collapsePrep');
     }
 
+
     /**
-     * 「言わなかった」で崩れ落ちる。
+     * =========================
+     * 崩壊（Collapse）
+     * 「言わなかった」
+     * =========================
      */
     handleCollapseTrigger({
         position,
@@ -191,6 +222,7 @@ export class MikuMotionController {
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.collapseTriggered) return;
 
         const isTargetPhrase =
@@ -203,16 +235,16 @@ export class MikuMotionController {
         }
 
         const phraseProgress =
-            getPhraseProgress(
-                position,
-                phrase
-            );
+            getPhraseProgress(position, phrase);
 
         const isIwanakattaTiming =
             normalizedWord.includes('言わなかった') ||
             normalizedWord.includes('言わ') ||
             normalizedWord.includes('なかった');
 
+        /**
+         * フレーズ終端 fallback
+         */
         const isPhraseEndFallback =
             phraseProgress >= 0.94;
 
@@ -223,22 +255,14 @@ export class MikuMotionController {
             return;
         }
 
-        // 「言わ」を早く拾った場合に備えて、
-        // フレーズの後半までは絶対に崩れない。
+        /**
+         * 早発火防止（ここ重要）
+         */
         if (phraseProgress < 0.78) {
             return;
         }
 
         this.collapseTriggered = true;
-
-        console.log(
-            '[MikuMotion] Trigger: Collapse Now at 言わなかった',
-            {
-                normalizedPhrase,
-                normalizedWord,
-                phraseProgress
-            }
-        );
 
         this.worldRenderer?.setMikuMoveMode?.('collapseNow');
     }

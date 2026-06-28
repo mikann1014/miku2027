@@ -1,28 +1,33 @@
 import * as THREE from 'three';
 
+
+/**
+ * WordImpactEffectManager
+ *
+ * ・単語クリック時の各フェクトを同時進行させる * ・単語クリック時の各種エフェクトを管理するクラス
+ *
+ * 主な特徴：
+ * - 単語ごとに異なる演出をトリガー
+ * - update内で時間進行＆自動破棄
+ * - 一部オブジェクト（イロ花）は永続管理
+ */
+
+
 export class WordImpactEffectManager {
     constructor(worldRenderer) {
         this.worldRenderer = worldRenderer;
         this.scene = worldRenderer.scene;
-
         this.group = new THREE.Group();
         this.group.name = 'wordImpactEffectGroup';
         this.scene.add(this.group);
-
         this.effects = [];
-
-        // 「イロ」で咲いた花は世界に残す
         this.persistentFlowers = [];
-
         this.hasIroBloomed = false;
         this.windEnabled = false;
-
         this.iroBloomQueue = null;
         this.iroBloomTerrainMeshesCache = null;
-
         this.iroBloomObjectLifetime = 6.0;
         this.iroBloomObjectFadeDuration = 2.0;
-        
     }
 
     update(delta = 0.016) {
@@ -63,9 +68,6 @@ export class WordImpactEffectManager {
             this.disposeTemporaryObject(child);
             child.parent?.remove(child);
         }
-
-        // persistentFlowers は消さない。
-        // 「イロ」で咲いた花は世界に残す。
     }
 
     applyWordEffect(word, position) {
@@ -73,10 +75,7 @@ export class WordImpactEffectManager {
         ソラ: () => this.spawnDistantMeteorShower(position),
         イロ: () => this.bloomWithExistingFlower(position),
         カナシミ: () => this.spawnSadnessBlue(position),
-
-        // ✅ 分離
         ヒカリ: () => this.spawnAurora(),
-        
         ナミダ: () => this.spawnRain(position),
         カタチ: () => this.spawnWideTransparentPrisms(position),
         オンガク: () => this.spawnToneObjectsOnPath(position)
@@ -90,11 +89,7 @@ export class WordImpactEffectManager {
     this.spawnSpark(position, 0xeaffff, 18);
 }
 spawnAurora() {
-
-    // ✅ 空を一気に青に
     this.scene.background = new THREE.Color(0x003366);
-
-    // ✅ 強いライト（これが一番効く）
     const light = new THREE.HemisphereLight(
         0x33ccff,   // 空
         0x001122,   // 地面
@@ -102,17 +97,15 @@ spawnAurora() {
     );
 
     this.scene.add(light);
-
-    // ✅ フラッシュ的エフェクト（見えやすさUP）
-    const flash = new THREE.Mesh(
-        new THREE.SphereGeometry(200),
-        new THREE.MeshBasicMaterial({
-            color: 0x00ccff,
-            transparent: true,
-            opacity: 0.25,
-            side: THREE.BackSide
-        })
-    );
+        const flash = new THREE.Mesh(
+            new THREE.SphereGeometry(200),
+            new THREE.MeshBasicMaterial({
+                color: 0x00ccff,
+                transparent: true,
+                opacity: 0.25,
+                side: THREE.BackSide
+            })
+        );
 
     const camera = this.worldRenderer.camera;
     flash.position.copy(camera.position);
@@ -145,7 +138,6 @@ activateWind() {
 
     console.log('[WordImpactEffect] Wind activated');
 
-    // 軽い波動（視覚フィードバック）
     this.spawnHeartPulse(
         this.worldRenderer.camera.position.clone()
     );
@@ -458,12 +450,7 @@ updateIroBloomQueue(delta = 0.016) {
         this.iroBloomQueue = null;
         return;
     }
-
-    // ✅ 1フレームで作る数
-    // 重いなら 4〜6、余裕があれば 8〜12
     const spawnBudgetPerFrame = 8;
-
-    // ✅ Raycast試行回数の上限
     const attemptBudgetPerFrame = 40;
 
     let spawnedThisFrame = 0;
@@ -503,9 +490,6 @@ updateIroBloomQueue(delta = 0.016) {
 
         const surfaceType =
             this.getSurfaceTypeHint(hit.object);
-
-        // ✅ ground だけ許可
-        // water/path/road/stone はここで除外される
         if (surfaceType !== 'ground') {
             continue;
         }
@@ -520,7 +504,6 @@ updateIroBloomQueue(delta = 0.016) {
             id === 'flower2' ||
             id === 'flower3';
 
-        // ✅ 花は2倍寄り。草は控えめ。
         const scaleMultiplier = isFlower
             ? 0.12 + Math.random() * 0.16
             : 0.07 + Math.random() * 0.08;
@@ -538,9 +521,6 @@ updateIroBloomQueue(delta = 0.016) {
             continue;
         }
 
-        // ✅ 重要：
-        // 花・草を法線に完全追従させない。
-        // これで上下逆さまを防ぐ。
         this.keepBloomObjectUpright(
             obj
         );
@@ -551,9 +531,7 @@ updateIroBloomQueue(delta = 0.016) {
         obj.userData.windReactive = true;
 obj.userData.iroBloomObject = true;
 
-// ✅ もう永続ではなく、時間経過で消す
 this.persistentFlowers.push(obj);
-
 this.scheduleTemporaryBloomObjectRemoval(
     obj,
     this.iroBloomObjectLifetime + Math.random() * 6.0,
@@ -577,12 +555,8 @@ spawnedThisFrame++;
 }
 keepBloomObjectUpright(object) {
     if (!object) return;
-
-    // ✅ X/Zの傾きを消して、常に上向きにする
     object.rotation.x = 0;
     object.rotation.z = 0;
-
-    // scale の負値が入っている場合も一応補正
     object.scale.x = Math.abs(object.scale.x);
     object.scale.y = Math.abs(object.scale.y);
     object.scale.z = Math.abs(object.scale.z);
@@ -1227,8 +1201,6 @@ prepareObjectMaterialsForFade(object) {
 
         prismPosition.y =
             0.9 + Math.random() * 5.0;
-
-        // ✅ 以前より半分くらい小さくする
         const scaleMultiplier =
             0.38 + Math.random() * 0.18;
 
@@ -1267,8 +1239,6 @@ prepareObjectMaterialsForFade(object) {
             0.62
         );
 
-        // spawnManager.spawn は scene に追加するので、
-        // エフェクト管理用 group に移す
         this.group.add(prism);
 
         const baseScale =
@@ -1467,7 +1437,7 @@ disposeOwnedMaterialsOnly(object) {
 
         pos.y = 0.6;
 
-        const scale = 0.2 + Math.random() * 0.3; // ✅ 最大でも0.5規模
+        const scale = 0.2 + Math.random() * 0.3;
 
         const tone = spawnManager.spawn('tone', pos, {
             scaleMultiplier: scale,
@@ -1476,7 +1446,6 @@ disposeOwnedMaterialsOnly(object) {
 
         if (!tone) continue;
 
-        // ✅ ランダム色
         const color = new THREE.Color().setHSL(
             Math.random(),
             0.9,
@@ -1914,10 +1883,6 @@ disposeOwnedMaterialsOnly(object) {
     if (!spawnManager) {
         return null;
     }
-
-    // =========================
-    // ✅ ① 正規APIがある場合
-    // =========================
     if (typeof spawnManager.getModel === 'function') {
         const result = spawnManager.getModel(name);
 
@@ -1925,10 +1890,6 @@ disposeOwnedMaterialsOnly(object) {
 
         return result.scene || result;
     }
-
-    // =========================
-    // ✅ ② registry直接取得（今の構造）
-    // =========================
     if (spawnManager.registry instanceof Map) {
         const result = spawnManager.registry.get(name);
 
@@ -1937,9 +1898,6 @@ disposeOwnedMaterialsOnly(object) {
         }
     }
 
-    // =========================
-    // ✅ ③ fallback（念のため保持）
-    // =========================
     const storeNames = [
         'models',
         'modelMap',
@@ -1964,9 +1922,6 @@ disposeOwnedMaterialsOnly(object) {
         }
     }
 
-    // =========================
-    // ✅ ④ 小文字フォールバック（超重要）
-    // =========================
     if (spawnManager.registry instanceof Map) {
         const keys = Array.from(
             spawnManager.registry.keys()

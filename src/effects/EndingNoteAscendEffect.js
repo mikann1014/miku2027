@@ -1,10 +1,31 @@
 import * as THREE from 'three';
 
+/**
+ * ======================================================
+ * EndingNoteAscendEffect
+ *
+ * ✅ 役割
+ * ・エンディングで音符が上昇していく演出
+ *
+ * ✅ 挙動
+ * ・ミク周辺に音符を生成
+ * ・らせん＋上昇＋拡散
+ * ・時間経過でフェードアウト
+ *
+ * ✅ ポイント
+ * ・spawnManagerで既存toneモデルを使用
+ * ・GPU負荷を抑えるため加算合成＋depthWriteオフ
+ * ======================================================
+ */
 export class EndingNoteAscendEffect {
+
     constructor(scene, spawnManager, options = {}) {
+
+        // --- 外部参照 ---
         this.scene = scene;
         this.spawnManager = spawnManager;
 
+        // --- このエフェクト専用グループ ---
         this.group = new THREE.Group();
         this.group.name = 'endingNoteAscendEffectGroup';
 
@@ -12,37 +33,38 @@ export class EndingNoteAscendEffect {
             this.scene.add(this.group);
         }
 
+        // --- 状態 ---
         this.active = false;
         this.elapsed = 0;
 
-        this.duration =
-            options.duration ?? 7.5;
+        // --- 設定 ---
+        this.duration = options.duration ?? 7.5;
+        this.count = options.count ?? 14;
 
-        this.count =
-            options.count ?? 14;
-
+        // --- 音符配列 ---
         this.notes = [];
     }
 
+
+    /**
+     * エフェクト開始
+     */
     start(originPosition, options = {}) {
+
+        // 前回の残骸をクリア
         this.clear();
 
         if (!originPosition) {
             return;
         }
 
-        this.duration =
-            options.duration ?? this.duration;
+        this.duration = options.duration ?? this.duration;
+        this.count = options.count ?? this.count;
 
-        this.count =
-            options.count ?? this.count;
-
+        // 音符を複数生成
         for (let i = 0; i < this.count; i++) {
-            const note =
-                this.createNote(
-                    originPosition,
-                    i
-                );
+
+            const note = this.createNote(originPosition, i);
 
             if (note) {
                 this.notes.push(note);
@@ -57,38 +79,37 @@ export class EndingNoteAscendEffect {
         );
     }
 
+
+    /**
+     * 音符1個生成
+     */
     createNote(originPosition, index) {
-        if (
-            !this.spawnManager ||
-            typeof this.spawnManager.spawn !== 'function'
-        ) {
+
+        // spawn不可なら終了
+        if (!this.spawnManager || typeof this.spawnManager.spawn !== 'function') {
             return null;
         }
 
-        const angle =
-            Math.random() * Math.PI * 2;
-
-        const radius =
-            0.6 + Math.random() * 3.5;
+        // --- 円形ランダム配置 ---
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 0.6 + Math.random() * 3.5;
 
         const position =
-            originPosition
-                .clone()
-                .add(
-                    new THREE.Vector3(
-                        Math.cos(angle) * radius,
-                        0.8 + Math.random() * 1.6,
-                        Math.sin(angle) * radius
-                    )
-                );
+            originPosition.clone().add(
+                new THREE.Vector3(
+                    Math.cos(angle) * radius,
+                    0.8 + Math.random() * 1.6,
+                    Math.sin(angle) * radius
+                )
+            );
 
+        // tone生成（既存モデル）
         const note =
             this.spawnManager.spawn(
                 'tone',
                 position,
                 {
-                    scaleMultiplier:
-                        0.28 + Math.random() * 0.2,
+                    scaleMultiplier: 0.28 + Math.random() * 0.2,
                     randomRotation: true
                 }
             );
@@ -97,55 +118,60 @@ export class EndingNoteAscendEffect {
             return null;
         }
 
-        note.name =
-            `ending_ascending_note_${index}`;
+        note.name = `ending_ascending_note_${index}`;
 
         this.group.add(note);
 
-        const color =
-            new THREE.Color().setHSL(
-                0.52 + Math.random() * 0.1,
-                0.9,
-                0.7
-            );
-
-        this.applyNoteMaterial(
-            note,
-            color
+        // --- 色（シアン寄り） ---
+        const color = new THREE.Color().setHSL(
+            0.52 + Math.random() * 0.1,
+            0.9,
+            0.7
         );
 
-        note.userData.startPosition =
-            note.position.clone();
+        this.applyNoteMaterial(note, color);
 
-        note.userData.phase =
-            Math.random() * Math.PI * 2;
+        // --- 初期データ ---
+        note.userData.startPosition = note.position.clone();
 
-        note.userData.ascendSpeed =
-            7.0 + Math.random() * 5.0;
+        // らせん位相
+        note.userData.phase = Math.random() * Math.PI * 2;
 
-        note.userData.sideDrift =
-            new THREE.Vector3(
-                (Math.random() - 0.5) * 2.4,
-                0,
-                (Math.random() - 0.5) * 2.4
-            );
+        // 上昇速度
+        note.userData.ascendSpeed = 7.0 + Math.random() * 5.0;
 
-        note.userData.baseScale =
-            note.scale.clone();
+        // 横ドリフト
+        note.userData.sideDrift = new THREE.Vector3(
+            (Math.random() - 0.5) * 2.4,
+            0,
+            (Math.random() - 0.5) * 2.4
+        );
+
+        // 元スケール
+        note.userData.baseScale = note.scale.clone();
 
         return note;
     }
 
+
+    /**
+     * マテリアル適用
+     * 
+     * ✅ ワイヤー：発光
+     * ✅ メッシュ：不可視（輪郭のみ）
+     */
     applyNoteMaterial(object, color) {
+
         object.traverse(child => {
+
             if (!child) return;
 
-            const lineMaterial =
-                child.userData?.lineMaterial;
+            // --- ワイヤーマテリアル ---
+            const lineMaterial = child.userData?.lineMaterial;
 
             if (lineMaterial) {
-                const cloned =
-                    lineMaterial.clone();
+
+                const cloned = lineMaterial.clone();
 
                 cloned.color.copy(color);
                 cloned.opacity = 0.95;
@@ -158,29 +184,30 @@ export class EndingNoteAscendEffect {
                 child.userData.lineMaterial = cloned;
             }
 
+            // --- メッシュ本体は透明化 ---
             if (
                 child.material &&
                 child.isMesh &&
                 !child.userData?.isWire
             ) {
+
                 const materials =
                     Array.isArray(child.material)
                         ? child.material
                         : [child.material];
 
-                const clonedMaterials =
-                    materials.map(material => {
-                        const cloned =
-                            material.clone();
+                const clonedMaterials = materials.map(material => {
 
-                        cloned.transparent = true;
-                        cloned.opacity = 0.0;
-                        cloned.depthWrite = false;
-                        cloned.colorWrite = false;
-                        cloned.needsUpdate = true;
+                    const cloned = material.clone();
 
-                        return cloned;
-                    });
+                    cloned.transparent = true;
+                    cloned.opacity = 0.0;     // 完全透明
+                    cloned.depthWrite = false;
+                    cloned.colorWrite = false;
+                    cloned.needsUpdate = true;
+
+                    return cloned;
+                });
 
                 child.material =
                     Array.isArray(child.material)
@@ -190,75 +217,69 @@ export class EndingNoteAscendEffect {
         });
     }
 
+
+    /**
+     * フレーム更新
+     */
     update(delta = 0.016) {
+
         if (!this.active) {
             return;
         }
 
         this.elapsed += delta;
 
-        const t =
-            THREE.MathUtils.clamp(
-                this.elapsed / this.duration,
-                0,
-                1
-            );
+        // 進行率 0〜1
+        const t = THREE.MathUtils.clamp(
+            this.elapsed / this.duration,
+            0,
+            1
+        );
 
         this.notes.forEach(note => {
+
             if (!note) return;
 
-            const phase =
-                note.userData.phase ?? 0;
-
-            const start =
-                note.userData.startPosition;
+            const phase = note.userData.phase ?? 0;
+            const start = note.userData.startPosition;
 
             const sideDrift =
-                note.userData.sideDrift ||
-                new THREE.Vector3();
+                note.userData.sideDrift || new THREE.Vector3();
 
             const ascendSpeed =
                 note.userData.ascendSpeed ?? 8;
 
-            const spiral =
-                new THREE.Vector3(
-                    Math.cos(
-                        this.elapsed * 1.8 + phase
-                    ),
-                    0,
-                    Math.sin(
-                        this.elapsed * 1.8 + phase
-                    )
-                ).multiplyScalar(
-                    0.8 * (1.0 - t)
-                );
-
-            note.position.copy(start);
-
-            note.position.y +=
-                ascendSpeed *
-                this.elapsed;
-
-            note.position.addScaledVector(
-                sideDrift,
-                t
+            // --- らせん運動 ---
+            const spiral = new THREE.Vector3(
+                Math.cos(this.elapsed * 1.8 + phase),
+                0,
+                Math.sin(this.elapsed * 1.8 + phase)
+            ).multiplyScalar(
+                0.8 * (1.0 - t)
             );
 
+            // --- 基準位置に戻す ---
+            note.position.copy(start);
+
+            // --- 上昇 ---
+            note.position.y += ascendSpeed * this.elapsed;
+
+            // --- 横拡散 ---
+            note.position.addScaledVector(sideDrift, t);
+
+            // --- らせん追加 ---
             note.position.add(spiral);
 
+            // --- 回転 ---
             note.rotation.y += delta * 1.8;
             note.rotation.z += delta * 0.9;
 
-            const scaleFade =
-                THREE.MathUtils.lerp(
-                    1.0,
-                    0.15,
-                    THREE.MathUtils.smoothstep(
-                        t,
-                        0.55,
-                        1.0
-                    )
-                );
+            // --- スケール縮小 ---
+            const scaleFade = THREE.MathUtils.lerp(
+                1.0,
+                0.15,
+                THREE.MathUtils.smoothstep(t, 0.55, 1.0)
+            );
 
             if (note.userData.baseScale) {
                 note.scale
@@ -266,24 +287,27 @@ export class EndingNoteAscendEffect {
                     .multiplyScalar(scaleFade);
             }
 
+            // --- フェードアウト ---
             this.setOpacity(
                 note,
-                1.0 -
-                    THREE.MathUtils.smoothstep(
-                        t,
-                        0.68,
-                        1.0
-                    )
+                1.0 - THREE.MathUtils.smoothstep(t, 0.68, 1.0)
             );
         });
 
+        // --- 終了 ---
         if (t >= 1.0) {
             this.clear();
         }
     }
 
+
+    /**
+     * オブジェクト全体の透明度変更
+     */
     setOpacity(object, opacity) {
+
         object.traverse(child => {
+
             const materials = [];
 
             if (child.material) {
@@ -299,6 +323,7 @@ export class EndingNoteAscendEffect {
             }
 
             materials.forEach(material => {
+
                 if (!material) return;
 
                 material.transparent = true;
@@ -308,12 +333,21 @@ export class EndingNoteAscendEffect {
         });
     }
 
+
+    /**
+     * 完全削除（メモリ解放）
+     */
     clear() {
+
         this.notes.forEach(note => {
+
             note.parent?.remove(note);
 
             note.traverse?.(child => {
+
+                // --- 通常マテリアル破棄 ---
                 if (child.material) {
+
                     const materials =
                         Array.isArray(child.material)
                             ? child.material
@@ -324,6 +358,7 @@ export class EndingNoteAscendEffect {
                     });
                 }
 
+                // --- ラインマテリアル破棄 ---
                 if (child.userData?.lineMaterial) {
                     child.userData.lineMaterial.dispose?.();
                 }
@@ -335,5 +370,3 @@ export class EndingNoteAscendEffect {
         this.elapsed = 0;
     }
 }
-
-

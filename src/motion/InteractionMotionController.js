@@ -1,10 +1,28 @@
 import { combineText } from './LyricUtils.js';
 
+/**
+ * InteractionMotionController
+ *
+ * ・歌詞（TextAlive）の進行に応じてモーションを発火する
+ *
+ * 役割：
+ * - 歌詞（phrase / word）を解析
+ * - 特定フレーズでモーション切替
+ * - UIや配置の解禁制御
+ *
+ * フロー：
+ * update()
+ *   ↓
+ * 各トリガ関数
+ */
 export class InteractionMotionController {
+
     constructor(worldRenderer, ui) {
+
         this.worldRenderer = worldRenderer;
         this.ui = ui;
 
+        // --- 状態フラグ（多重発火防止） ---
         this.walkToStopATriggered = false;
         this.handTriggered = false;
         this.hartTriggered = false;
@@ -12,31 +30,36 @@ export class InteractionMotionController {
         this.placementUnlocked = false;
         this.walkRestartTriggered = false;
 
-        // currentWord が取れない環境向けの保険。
-        // 基本は currentWord 優先。
+        /**
+         * currentWordが使えない場合のフォールバック
+         */
         this.fallbackProgress = {
             walkToStopA: 0.62,
 
-            // 「手を伸ばしてみたり」は修正前のタイミングに戻す。
-            // currentWord が取れる場合は「手を」付近で発火する。
+            // 手の動作（旧タイミング）
             hand: 0.20,
 
             hart: 0.08
         };
 
-        // currentWord が取れている場合の微調整。
+        /**
+         * wordベース判定の微調整
+         */
         this.wordProgressThreshold = {
             walkToStopA: 0.35,
 
-            // 「手」単体で来た場合の保険。
+            // 「手」が分割されたケース
             hand: 0.02
         };
     }
 
+
+    /**
+     * 毎フレーム更新
+     */
     update(context) {
-        if (!context) {
-            return;
-        }
+
+        if (!context) return;
 
         this.handleWalkToStopATrigger(context);
         this.handleHandTrigger(context);
@@ -45,7 +68,12 @@ export class InteractionMotionController {
         this.handleWalkRestartTrigger(context);
     }
 
+
+    /**
+     * 単語一致チェック
+     */
     isCurrentWordTarget(normalizedWord, candidates) {
+
         if (!normalizedWord) {
             return false;
         }
@@ -55,7 +83,12 @@ export class InteractionMotionController {
         });
     }
 
+
+    /**
+     * フレーズ進行率
+     */
     getPhraseProgress(position, phrase) {
+
         const startTime = phrase?.startTime;
         const endTime = phrase?.endTime;
 
@@ -76,7 +109,12 @@ export class InteractionMotionController {
         );
     }
 
+
+    /**
+     * 汎用時間付きオブジェクト進行率
+     */
     getTimedObjectProgress(position, timedObject) {
+
         const startTime = timedObject?.startTime;
         const endTime = timedObject?.endTime;
 
@@ -97,7 +135,12 @@ export class InteractionMotionController {
         );
     }
 
+
+    /**
+     * ハート対象フレーズ判定
+     */
     isHartTargetPhrase(normalizedPhrase) {
+
         if (!normalizedPhrase) {
             return false;
         }
@@ -109,7 +152,12 @@ export class InteractionMotionController {
         );
     }
 
+
+    /**
+     * データスモッグ対象
+     */
     isDataSmogGapPhrase(normalizedPhrase) {
+
         if (!normalizedPhrase) {
             return false;
         }
@@ -122,19 +170,15 @@ export class InteractionMotionController {
         );
     }
 
+
+    /**
+     * WalkToStopA（今回は無効）
+     */
     handleWalkToStopATrigger({
         normalizedPhrase
     }) {
-        // 今回の仕様では、データスモッグの隙間からでは止めない。
-        //
-        // 1回目：
-        // 少しだけデータスモッグの隙間から
-        //
-        // 2回目：
-        // 増えてゆくデータスモッグの隙間から
-        //
-        // どちらもここでは walkToStopA を出さない。
-        // 2回目も「走ったまま」でよい。
+
+        // データスモッグでは止めない仕様
         if (this.walkToStopATriggered) {
             return;
         }
@@ -143,6 +187,7 @@ export class InteractionMotionController {
             return;
         }
 
+        // あえて何もせずログのみ
         console.log(
             '[InteractionMotion] WalkToStopA skipped at data smog gap.',
             {
@@ -151,16 +196,22 @@ export class InteractionMotionController {
         );
     }
 
+
+    /**
+     * 手を伸ばす
+     */
     handleHandTrigger({
         position,
         phrase,
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.handTriggered) {
             return;
         }
 
+        // 対象判定
         const isTargetPhrase =
             normalizedPhrase.includes('手を伸ばしてみたり') ||
             normalizedPhrase.includes('手を伸ばして') ||
@@ -171,13 +222,11 @@ export class InteractionMotionController {
         }
 
         const phraseProgress =
-            this.getPhraseProgress(
-                position,
-                phrase
-            );
+            this.getPhraseProgress(position, phrase);
 
-        // 修正前のタイミングに戻す。
-        // 「手を」で伸ばし出す。
+        /**
+         * 「手を」で発火（最優先）
+         */
         const isTeWoTiming =
             this.isCurrentWordTarget(
                 normalizedWord,
@@ -189,12 +238,16 @@ export class InteractionMotionController {
                 ]
             );
 
-        // TextAlive側で「手」と「を」が分かれる場合の保険。
+        /**
+         * 「手」と「を」が分かれる場合
+         */
         const isSplitTeTiming =
             normalizedWord === '手' &&
             phraseProgress >= this.wordProgressThreshold.hand;
 
-        // currentWord が取れない場合だけの保険。
+        /**
+         * fallback
+         */
         const isFallbackTiming =
             !normalizedWord &&
             phraseProgress >= this.fallbackProgress.hand;
@@ -210,31 +263,25 @@ export class InteractionMotionController {
 
         this.handTriggered = true;
 
-        console.log(
-            '[InteractionMotion] Trigger: Hand at 手を',
-            {
-                normalizedPhrase,
-                normalizedWord,
-                phraseProgress
-            }
-        );
-
         if (
             this.worldRenderer &&
             typeof this.worldRenderer.setMikuMoveMode === 'function'
         ) {
-            this.worldRenderer.setMikuMoveMode(
-                'hand'
-            );
+            this.worldRenderer.setMikuMoveMode('hand');
         }
     }
 
+
+    /**
+     * ハート
+     */
     handleHartTrigger({
         position,
         phrase,
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.hartTriggered) {
             return;
         }
@@ -256,10 +303,7 @@ export class InteractionMotionController {
             );
 
         const phraseProgress =
-            this.getPhraseProgress(
-                position,
-                phrase
-            );
+            this.getPhraseProgress(position, phrase);
 
         const isFallbackTiming =
             !normalizedWord &&
@@ -275,29 +319,23 @@ export class InteractionMotionController {
 
         this.hartTriggered = true;
 
-        console.log(
-            '[InteractionMotion] Trigger: Hart at あなたを思ってみたり',
-            {
-                normalizedPhrase,
-                normalizedWord,
-                phraseProgress
-            }
-        );
-
         if (
             this.worldRenderer &&
             typeof this.worldRenderer.setMikuMoveMode === 'function'
         ) {
-            this.worldRenderer.setMikuMoveMode(
-                'hart'
-            );
+            this.worldRenderer.setMikuMoveMode('hart');
         }
     }
 
+
+    /**
+     * 配置解禁
+     */
     handlePlacementUnlockTrigger({
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.placementUnlocked) {
             return;
         }
@@ -318,8 +356,6 @@ export class InteractionMotionController {
 
         this.placementUnlocked = true;
 
-        console.log('[InteractionMotion] Trigger: Placement Unlock');
-
         if (
             this.worldRenderer &&
             typeof this.worldRenderer.setPlacementEnabled === 'function'
@@ -335,10 +371,15 @@ export class InteractionMotionController {
         }
     }
 
+
+    /**
+     * Walk再開
+     */
     handleWalkRestartTrigger({
         normalizedPhrase,
         normalizedWord
     }) {
+
         if (this.walkRestartTriggered) {
             return;
         }
@@ -359,8 +400,6 @@ export class InteractionMotionController {
         }
 
         this.walkRestartTriggered = true;
-
-        console.log('[InteractionMotion] Trigger: Walk Restart');
 
         if (
             this.worldRenderer &&

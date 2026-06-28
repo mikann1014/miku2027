@@ -4,21 +4,37 @@ import { MikuDissolveToBirdEffect } from '../effects/MikuDissolveToBirdEffect.js
 import { InterludeWordEffect } from '../effects/InterludeWordEffect.js';
 import { LateActTimelineController } from './LateActTimelineController.js';
 
+/**
+ * LateActSequenceDirector
+ *
+ * ・後半演出（LateAct）の進行制御クラス
+ * ・ミク崩壊 → ワード演出 → 再構成 → タイムライン発火
+ *
+ * 主な責務：
+ * - 状態遷移（state管理）
+ * - 各演出エフェクトの起動・更新
+ * - Timelineの開始・継続更新
+ */
 export class LateActSequenceDirector {
+
     constructor(worldRenderer) {
+
         this.worldRenderer = worldRenderer;
 
         this.scene = worldRenderer.scene;
         this.camera = worldRenderer.camera;
 
+        // --- 状態 ---
         this.state = 'idle';
         this.elapsed = 0;
 
         this.hasStarted = false;
         this.hasCompleted = false;
 
+        // 崩壊後の待機時間
         this.delayAfterCollapseFinished = 0.45;
 
+        // --- ミク分解エフェクト ---
         this.dissolveEffect =
             new MikuDissolveToBirdEffect(
                 this.scene,
@@ -35,6 +51,7 @@ export class LateActSequenceDirector {
                 }
             );
 
+        // --- ワード演出 ---
         this.wordEffect =
             new InterludeWordEffect(
                 this.worldRenderer,
@@ -55,16 +72,23 @@ export class LateActSequenceDirector {
                 }
             );
 
+        // --- 鳥モデル（現在未使用） ---
         this.birdTemplate = null;
         this.birdAnimations = [];
 
+        // --- タイムライン ---
         this.timeline =
             new LateActTimelineController(
                 this.worldRenderer
             );
     }
 
+
+    /**
+     * 鳥GLTF登録（現時点では未使用）
+     */
     registerBirdGLTF(gltf) {
+
         if (!gltf || !gltf.scene) {
             return;
         }
@@ -75,7 +99,12 @@ export class LateActSequenceDirector {
         console.log('[LateAct] Bird registered (unused)');
     }
 
+
+    /**
+     * 崩壊後から開始
+     */
     startFromCollapse() {
+
         if (this.hasStarted) {
             return;
         }
@@ -83,6 +112,7 @@ export class LateActSequenceDirector {
         this.hasStarted = true;
         this.hasCompleted = false;
 
+        // 最初は待機
         this.state = 'waitAfterCollapse';
         this.elapsed = 0;
 
@@ -93,14 +123,22 @@ export class LateActSequenceDirector {
         console.log('[LateAct] Collapse → wait');
     }
 
+
+    /**
+     * （未使用フック）
+     */
     beginReturnToMiku() {
         console.log('[LateAct] Bird disabled');
     }
 
+
+    /**
+     * メイン更新
+     */
     update(delta = 0.016) {
+
         // =========================
-        // 最重要：
-        // timeline は hasCompleted 後も更新する
+        // timeline は常に更新
         // =========================
         if (
             this.timeline &&
@@ -109,10 +147,7 @@ export class LateActSequenceDirector {
             this.timeline.update(delta);
         }
 
-        // =========================
-        // LateAct本体が終了していても、
-        // timeline は上で動かし続ける
-        // =========================
+        // LateAct終了後は本体処理しない
         if (
             this.state === 'idle' ||
             this.hasCompleted
@@ -122,6 +157,7 @@ export class LateActSequenceDirector {
 
         this.elapsed += delta;
 
+        // === 状態分岐 ===
         if (this.state === 'waitAfterCollapse') {
             this.updateWaitAfterCollapse();
         }
@@ -139,7 +175,12 @@ export class LateActSequenceDirector {
         }
     }
 
+
+    /**
+     * 崩壊後ウェイト
+     */
     updateWaitAfterCollapse() {
+
         if (this.elapsed < this.delayAfterCollapseFinished) {
             return;
         }
@@ -150,7 +191,12 @@ export class LateActSequenceDirector {
         this.elapsed = 0;
     }
 
+
+    /**
+     * ミク分解開始
+     */
     startMikuDissolve() {
+
         const mikuModel =
             this.worldRenderer.miku?.model;
 
@@ -159,13 +205,14 @@ export class LateActSequenceDirector {
             return;
         }
 
+        // 移動停止
         this.worldRenderer.setMikuMoveMode?.('stop');
+
+        // 準備フック
         this.worldRenderer.prepareMikuDissolveInterlude?.();
 
         const started =
-            this.dissolveEffect.start(
-                mikuModel
-            );
+            this.dissolveEffect.start(mikuModel);
 
         if (!started) {
             console.warn('[LateAct] dissolve failed');
@@ -179,7 +226,12 @@ export class LateActSequenceDirector {
         console.log('[LateAct] Dissolve start');
     }
 
+
+    /**
+     * 分解更新
+     */
     updateMikuDissolve(delta) {
+
         const completed =
             this.dissolveEffect.update(delta);
 
@@ -187,12 +239,14 @@ export class LateActSequenceDirector {
             return;
         }
 
+        // ミク位置取得
         const mikuPosition =
             this.worldRenderer.characterManager
                 ?.getMikuPosition?.()
                 ?.clone() ||
             new THREE.Vector3(0, 0, 0);
 
+        // ワード開始
         this.wordEffect.start(mikuPosition);
 
         this.state = 'wordInterlude';
@@ -201,7 +255,12 @@ export class LateActSequenceDirector {
         console.log('[LateAct] Word phase start');
     }
 
+
+    /**
+     * ワード演出更新
+     */
     updateWordInterlude(delta) {
+
         if (
             !this.wordEffect ||
             typeof this.wordEffect.update !== 'function'
@@ -212,7 +271,12 @@ export class LateActSequenceDirector {
         this.wordEffect.update(delta);
     }
 
+
+    /**
+     * クリックイベント
+     */
     handlePointerEvent(event) {
+
         if (
             this.state === 'wordInterlude' ||
             this.state === 'wordGather'
@@ -223,7 +287,12 @@ export class LateActSequenceDirector {
         return false;
     }
 
+
+    /**
+     * ワード収束開始
+     */
     startGatherWordsToMiku() {
+
         if (this.state !== 'wordInterlude') {
             return;
         }
@@ -238,7 +307,12 @@ export class LateActSequenceDirector {
         console.log('[LateAct] Gather start');
     }
 
+
+    /**
+     * ミク再構成
+     */
     reappearMikuFromWords(summary = null) {
+
         const mikuModel =
             this.worldRenderer.miku?.model;
 
@@ -252,6 +326,7 @@ export class LateActSequenceDirector {
         this.state = 'mikuReappeared';
         this.hasCompleted = true;
 
+        // --- 状態復帰 ---
         if (this.worldRenderer) {
             this.worldRenderer.setInteractionLocked?.(false);
             this.worldRenderer.setPlacementEnabled?.(true);
@@ -260,12 +335,18 @@ export class LateActSequenceDirector {
             this.worldRenderer.currentPhase = 'lastChorus';
         }
 
+        // タイムライン開始
         this.timeline?.start();
 
         console.log('[LateAct] Miku restored', summary);
     }
 
+
+    /**
+     * リセット
+     */
     clear() {
+
         this.dissolveEffect?.clear();
         this.wordEffect?.clear();
         this.timeline?.clear();

@@ -1,5 +1,15 @@
 import * as THREE from 'three';
 
+
+/**
+ * LyricRainEffect
+ *
+ * ・歌詞フレーズをカメラ前方に生成するエフェクト
+ * ・ゆっくり漂いながら消滅し、途中で花びら状に分解される
+ * ・分解されたシャードは独立して飛散しフェードアウトする
+*/
+
+
 export class LyricRainEffect {
     constructor(scene, options = {}) {
         this.scene = scene;

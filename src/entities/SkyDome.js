@@ -1,6 +1,16 @@
 import * as THREE from 'three';
 import { SkyShader } from '../shaders/SkyShader.js';
 
+
+/**
+ * SkyDome
+ *
+ * ・シーン全体を覆うスカイドーム（背景グラデーション）
+ * ・ShaderMaterialで上空〜地平線のグラデーションを制御
+ * ・複数フェーズ（時間や演出）を定義し、遷移可能
+ */
+
+
 export class SkyDome {
     constructor(scene) {
     this.scene = scene;

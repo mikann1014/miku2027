@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 import { SurfacePicker } from '../placement/SurfacePicker.js';
 import { PlacementRules } from '../placement/PlacementRules.js';
 import { ClusterPlacement } from '../placement/ClusterPlacement.js';
@@ -8,6 +6,19 @@ import { BloomController } from '../placement/BloomController.js';
 import { PlacementAligner } from '../placement/PlacementAligner.js';
 import { ClusterQueueProcessor } from '../placement/ClusterQueueProcessor.js';
 import { SurfaceAnchorController } from '../placement/SurfaceAnchorController.js';
+
+
+/**
+ジェクト配置の中枢管理クラス * PlacementManager
+ * ・地形判定 → 配置方式選択 → 登録 → 補正
+ *
+ * 主な責務：
+ * - surface判定（ground / water / island / mountain）
+ * - 単体 or クラスタ配置
+ * - registry登録
+ * - anchor / depth補正
+ */
+
 
 export class PlacementManager {
     constructor(scene, camera, renderer, spawnManager) {
@@ -1068,7 +1079,6 @@ clearObjects(options = {}) {
         obj.parent?.remove(obj);
     });
 
-    // registryだけ調整（全部クリアしない）
     this.registry.clear();
 
     kept.forEach(obj => {

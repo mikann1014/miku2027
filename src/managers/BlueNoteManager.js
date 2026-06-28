@@ -1,5 +1,18 @@
 import * as THREE from 'three';
 
+
+/**
+ * BlueNoteManager
+を管理するクラス *
+ * ・ミクに追従する視覚ナビゲーション要素
+ *
+ * モード：
+ *  follow / side / orbit / ascend
+ *
+ * ※ note = 音符オブジェクト
+ */
+
+
 export class BlueNoteManager {
     constructor(scene, spawnManager) {
         this.scene = scene;

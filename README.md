@@ -2,23 +2,32 @@
 
 初音ミク「マジカルミライ 2026」プログラミング・コンテスト応募作品 **「世界最後の音楽隊」** の楽曲進行に合わせて、Three.js の3D世界・歌詞・インタラクション・配置オブジェクト・演出が変化する WebGL 作品です。
 
-このリポジトリは、TextAlive App API による楽曲同期、Three.js によるプロシージャル地形、初音ミクモデルのモーション制御、歌詞表示、クリック配置、山・湖・小島・花・音符・エンディング演出を組み合わせたインタラクティブな音楽体験を実装しています。
+このリポジトリは、TextAlive App API による楽曲同期、Three.js によるプロシージャル地形、初音ミクモデルのモーション制御、歌詞表示、クリック配置、山・湖・小島・花・音符・エンディング演出を組み合わせた音楽体験を実装しています。
+
+本作品は **静的Webアプリケーション** です。  
+サーバーサイド処理は必要なく、HTTPサーバー上に設置するだけで動作する構成にしています。
 
 ---
 
 ## 目次
 
+- [作品アピール](#作品アピール)
 - [概要](#概要)
-- [現在の主な構成](#現在の主な構成)
-- [ディレクトリ構成](#ディレクトリ構成)
+- [動作環境](#動作環境)
 - [起動方法](#起動方法)
+- [操作方法](#操作方法)
+- [ディレクトリ構成](#ディレクトリ構成)
 - [主要ファイルと責務](#主要ファイルと責務)
-- [現在の設計方針](#現在の設計方針)
 - [配置オブジェクトとマテリアル方針](#配置オブジェクトとマテリアル方針)
 - [山の花演出について](#山の花演出について)
-- [リファクタリング方針](#リファクタリング方針)
-- [今後の作業メモ](#今後の作業メモ)
-- [注意点](#注意点)
+- [実装上の注意](#実装上の注意)
+- [補足](#補足)
+
+---
+
+## 作品アピール
+
+初音ミクとともに楽曲世界を歩き、歌詞の情景そのものを体験する作品です。曲に合わせて空や環境は変化し、プレイヤーが花を咲かせたり景色に触れたりすると、世界が静かに応答します。歌詞に込められた「色の生成」「感情の受容」「未来への継承」を、空の変化、光、音符、ミクの動き等で表現しました。
 
 ---
 
@@ -29,14 +38,99 @@
 - 歌詞に応じた空色・環境色の変化
 - 初音ミクの歩き・走り・停止・手を伸ばす・崩れ落ちる・再登場などのモーション遷移
 - 青い音符の出現、追従、軌道運動、上昇
-- 歌詞の浮遊表示、引き寄せ、消散
+- 歌詞の浮遊表示、引き寄せ、霧散
 - 湖・道・小島・山への花・草・葉の配置
-- 山に降り注ぐメロディ花の演出
-- エンディングの空・流星・タイトル表示
+- 山に咲く花の演出
+- エンディングの空・タイトル表示
+
+ユーザーは画面内の地形をクリックすることで、花・草・葉などのオブジェクトを配置できます。  
 
 ---
 
-## 現在の主な構成
+## 動作環境
+
+推奨環境:
+
+- Google Chrome 最新版
+- WebGL が有効な環境
+- インターネット接続
+- ローカルHTTPサーバー、または任意の静的Webサーバー
+
+注意:
+
+- `index.html` を `file://` で直接開くのではなく、必ずHTTPサーバー経由で起動してください。
+- TextAlive App API の再生開始には、ブラウザの autoplay 制限によりユーザー操作が必要です。
+- Three.js / WebGL を使用しているため、端末やブラウザの描画性能によって表示負荷が変わる場合があります。
+
+---
+
+## 起動方法
+
+### 推奨: プロジェクト直下でサーバーを起動する場合
+
+プロジェクト直下で以下を実行します。
+
+```bash
+python -m http.server 8001
+```
+
+ブラウザで以下を開きます。
+
+```txt
+http://127.0.0.1:8001/src/
+```
+---
+
+### 別の起動方法: `src` ディレクトリでサーバーを起動する場合
+
+```bash
+cd src
+python -m http.server 5173
+```
+
+ブラウザで以下を開きます。
+
+```txt
+http://127.0.0.1:5173/
+```
+
+---
+
+### 任意の静的サーバーを使用する場合
+
+任意の静的HTTPサーバーでも起動できます。
+
+例:
+
+```bash
+npx serve .
+```
+
+プロジェクト直下を公開した場合は、ブラウザで以下にアクセスしてください。
+
+```txt
+http://localhost:3000/src/
+```
+
+`src` ディレクトリを公開ルートにした場合は、以下のようにアクセスしてください。
+
+```txt
+http://localhost:3000/
+```
+
+---
+
+## 操作方法
+
+1. タイトル画面で「クリックして接続」を押します。
+2. 音楽データの準備後、「クリックして歌を聴く」を押します。
+3. 楽曲が進行すると、歌詞、空、環境色、ミクのモーション、各種演出が変化します。
+4. 配置メニューが表示されたあと、左側のボタンで花・草・葉を選択できます。
+5. 湖・道・小島・山などをクリックすると、選択中のオブジェクトを配置できます。
+
+---
+
+## ディレクトリ構成
 
 ```txt
 src
@@ -59,13 +153,41 @@ src
 ├── shaders/
 ├── spawn/
 ├── terrain/
-├── ui/
-└── _legacy/
+└── ui/
 ```
 
 ---
 
-## ディレクトリ構成
+### `src/assets`
+
+GLBモデルなどの3Dアセットを配置しています。
+
+主なアセット:
+
+```txt
+MikuWalk.glb
+MikuRun.glb
+MikuStop.glb
+MikuTurn.glb
+MikuHand.glb
+MikuHart.glb
+MikuStoptoCollapse.glb
+flower1.glb
+flower2.glb
+flower3.glb
+Grass1.glb
+Grass2.glb
+Grass3.glb
+Leaf.glb
+Prism1.glb
+Prism2.glb
+Prism3.glb
+Ripple.glb
+tone.glb
+lake2.glb
+```
+
+---
 
 ### `src/core`
 
@@ -80,6 +202,8 @@ EffectManager.js
 InteractionEventManager.js
 LyricsManager.js
 ```
+
+---
 
 ### `src/managers`
 
@@ -96,6 +220,8 @@ ProceduralTerrainManager.js
 ColorManager.js
 ```
 
+---
+
 ### `src/effects`
 
 視覚演出を担当します。
@@ -111,6 +237,8 @@ LyricRainEffect.js
 MikuDissolveToBirdEffect.js
 ```
 
+---
+
 ### `src/materials`
 
 配置オブジェクト、とくに花・草・葉のマテリアル方針を分離するためのディレクトリです。
@@ -118,6 +246,8 @@ MikuDissolveToBirdEffect.js
 ```txt
 PlacedPlantMaterialPolicy.js
 ```
+
+---
 
 ### `src/placement`
 
@@ -134,9 +264,11 @@ BloomController.js
 SurfaceAnchorController.js
 ```
 
+---
+
 ### `src/terrain`
 
-プロシージャル地形と山・水面・道・小島・石などの生成を担当します。
+プロシージャル地形と山・水面・道・小島などの生成を担当します。
 
 ```txt
 TerrainMaterialFactory.js
@@ -147,38 +279,11 @@ generators/
 utils/
 ```
 
-### `src/_legacy`
-
-現行構成では使わない、または旧設計のファイルを一時退避している場所です。
-
-削除ではなく退避扱いにしています。必要ならあとで復元・参照できます。
-
----
-
-## 起動方法
-
-このプロジェクトは `index.html` を直接開くより、ローカルサーバーで起動してください。
-
-例:
-
-```bash
-cd src
-python -m http.server 5173
-```
-
-ブラウザで以下を開きます。
-
-```txt
-http://localhost:5173
-```
-
-または任意の静的サーバーを使用してください。
-
 ---
 
 ## 主要ファイルと責務
 
-## `main.js`
+### `main.js`
 
 アプリケーション起動、TextAlive連携、入力イベント、楽曲進行に応じた更新の入口です。
 
@@ -193,7 +298,7 @@ http://localhost:5173
 
 ---
 
-## `WorldRenderer.js`
+### `WorldRenderer.js`
 
 Three.js のシーン全体を管理します。
 
@@ -206,16 +311,76 @@ Three.js のシーン全体を管理します。
 - 毎フレーム更新
 - 山花演出、エンディング演出、流星、フェードアウトなどの橋渡し
 
-今後は肥大化を避けるため、以下の処理はできるだけ専用クラスへ分離します。
-
-- 山花ポイント生成
-- 配置植物のマテリアル安定化
-- 地形アンカー更新
-- エンディングタイムライン
+このクラスは描画世界の中心として、各マネージャやエフェクトを接続する役割を持ちます。
 
 ---
 
-## `SpawnManager.js`
+### `MusicManager.js`
+
+TextAlive App API との連携、楽曲再生、楽曲時間の管理を担当します。
+
+主な責務:
+
+- TextAlive Player の生成・管理
+- 再生状態の管理
+- 楽曲時間の取得
+- 歌詞・ビート・楽曲進行に応じたイベント連携
+- ユーザー操作後の再生開始処理
+
+---
+
+### `CharacterManager.js`
+
+初音ミクモデルの状態管理を担当します。
+
+主な責務:
+
+- `MikuEntity` の生成・保持
+- アニメーション制御との接続
+- モーション状態の更新
+- 楽曲フェーズに応じたキャラクター挙動の橋渡し
+
+---
+
+### `MikuAnimationController.js`
+
+初音ミクのアニメーション遷移を管理します。
+
+主な責務:
+
+- 歩行・走行・停止・ターンなどの再生
+- アニメーション間の切り替え
+- フェードやミックス処理
+- 楽曲進行に応じたモーション変更
+
+---
+
+### `MotionDirector.js`
+
+楽曲進行に応じたモーション全体の指揮を担当します。
+
+主な責務:
+
+- `MikuMotionController` の制御
+- `VisualMotionController` の制御
+- `InteractionMotionController` の制御
+- 楽曲フェーズに応じたモーション状態の決定
+
+---
+
+### `ExperiencePhaseDirector.js`
+
+楽曲全体のフェーズ管理を担当します。
+
+主な責務:
+
+- 楽曲時間に応じたフェーズ判定
+- フェーズごとの演出トリガー
+- 後半演出や終盤演出への移行管理
+
+---
+
+### `SpawnManager.js`
 
 登録済みGLBモデルを複製してシーンへ配置します。
 
@@ -226,12 +391,11 @@ Three.js のシーン全体を管理します。
 - material clone による個体ごとのマテリアル分離
 - `CyberWireMaterialApplier` の適用
 - 水面リップル管理
-
-現在は花・草・葉のマテリアル補正を `PlacedPlantMaterialPolicy` に委譲する方針です。
+- 花・草・葉のマテリアル補正を `PlacedPlantMaterialPolicy` に委譲
 
 ---
 
-## `PlacementManager.js`
+### `PlacementManager.js`
 
 クリック配置を管理します。
 
@@ -245,9 +409,9 @@ Three.js のシーン全体を管理します。
 
 ---
 
-## `ProceduralTerrainManager.js`
+### `ProceduralTerrainManager.js`
 
-`lake2.glb` の代わりに、プロシージャル地形を生成します。
+一部のGLBアセットとプロシージャル生成を組み合わせて、地形を生成します。
 
 生成対象:
 
@@ -260,7 +424,7 @@ Three.js のシーン全体を管理します。
 
 ---
 
-## `ProceduralMountainFlowerField.js`
+### `ProceduralMountainFlowerField.js`
 
 「あなたのカタチに降り注ぐメロディ」付近で表示される、山に咲く丸い花の演出です。
 
@@ -274,7 +438,7 @@ Three.js のシーン全体を管理します。
 
 ---
 
-## `MountainFlowerPointService.js`
+### `MountainFlowerPointService.js`
 
 山花のローカル座標を生成する専用クラスです。
 
@@ -286,7 +450,7 @@ Three.js のシーン全体を管理します。
 
 ---
 
-## `PlacedPlantMaterialPolicy.js`
+### `PlacedPlantMaterialPolicy.js`
 
 配置された花・草・葉の見た目を安定化します。
 
@@ -294,84 +458,27 @@ Three.js のシーン全体を管理します。
 
 - 面は描画しない
 - wire のみ発色
-- wire は地形に隠れにくくする
-- エフェクト後にマテリアルが壊れても復元できる
+- wire はミクとの前後関係を考慮する
+- エフェクト後にマテリアルが変化しても復元できる
 
 ---
 
-## `SurfaceAnchorController.js`
+### `SurfaceAnchorController.js`
 
-配置オブジェクトを、地形メッシュのローカル座標に固定するためのクラスです。
+配置オブジェクトを、必要に応じて地形メッシュのローカル座標に固定するためのクラスです。
 
 主な責務:
 
 - 配置時に `surfaceAnchorObject` と `surfaceAnchorLocalPosition` を保存
 - 毎フレーム anchor の現在位置から world 座標を再計算
-- 山・小島・水面が動いても、植えた位置に追従させる
-
----
-
-## 現在の設計方針
-
-## 1. 常設オブジェクトと一時演出を分ける
-
-常設配置された花・草・葉と、一時的な bloom / shard / word effect は混ぜない方針です。
-
-```txt
-常設配置:
-  PlacementManager
-  PlacedObjectRegistry
-  SurfaceAnchorController
-  PlacedPlantMaterialPolicy
-
-一時演出:
-  EphemeralBloomEffect
-  WordImpactEffectManager
-  LyricRainEffect
-  EndingWorldResponseEffect
-```
-
----
-
-## 2. 花・草・葉は wire 表示を基本にする
-
-サイバー感を維持するため、配置植物は以下の方針です。
-
-```txt
-face material:
-  opacity = 0
-  colorWrite = false
-  depthWrite = false
-
-wire material:
-  opacity = 1
-  additive blending
-  depthWrite = false
-  depthTest = false
-```
-
----
-
-## 3. 山は moving terrain anchor として扱う
-
-左右の山はミクの移動に合わせて動いています。
-
-```js
-leftMountainGroup.position.z = mikuZ;
-rightMountainGroup.position.z = mikuZ;
-```
-
-そのため、山に配置したもの・山花演出は、山Groupまたは山Meshローカルに固定します。
-
-```txt
-ワールド固定ではなく、山ローカル固定
-```
+- 現在は主に `mountain` への配置で使用する
+- `ground` / `water` / `island` は terrain chunk 再利用によるワープを避けるため、基本的に world 座標固定にする
 
 ---
 
 ## 配置オブジェクトとマテリアル方針
 
-## 通常配置植物
+### 通常配置植物
 
 対象:
 
@@ -390,7 +497,7 @@ Leaf
 ```txt
 面は表示しない
 wireだけ表示する
-地形に埋もれて見えなくならないようにする
+ミクの奥にある配置物はミクに隠れる
 ```
 
 関連クラス:
@@ -402,6 +509,24 @@ PlacedPlantMaterialPolicy
 PlacementManager
 SurfaceAnchorController
 ```
+
+---
+
+### 配置オブジェクトの固定方針
+
+配置オブジェクトは、配置された surface type によって固定方法を変えます。
+
+```txt
+mountain:
+  surfaceAnchorObject のローカル座標に固定する
+  山がミク移動に追従して動くため、花も山と一緒に動かす
+
+ground / water / island:
+  world 座標に固定する
+  terrain chunk の再利用時に配置物が奥へワープするのを防ぐ
+```
+
+このため、`SurfaceAnchorController` は主に `mountain` 配置で使用し、それ以外は `anchorPosition` による world 固定を優先します。
 
 ---
 
@@ -431,221 +556,25 @@ this.worldRenderer.triggerMelodyMountainBloom?.({
 
 ---
 
-## リファクタリング方針
+## 実装上の注意
 
-現在、責務が集中しやすいクラスがあります。
+### 1. HTTPサーバー経由で起動すること
 
-## 優先して分割するもの
+`file://` で直接 `index.html` を開くと、ES Modules、GLB、TextAlive App API、外部CDNの読み込みで問題が起こる可能性があります。
 
-### `WorldRenderer.js`
-
-今後分離したい処理:
-
-```txt
-山花演出制御
-エンディングシーケンス制御
-配置植物の安定化
-地形アンカー更新
-流星演出
-```
-
-候補:
-
-```txt
-EndingSequenceController
-MountainBloomController
-PlacedObjectStabilizer
-MeteorShowerEffect
-```
+必ずHTTPサーバー経由で開いてください。
 
 ---
 
-### `SpawnManager.js`
+### 2. 静的Webアプリケーションとして動作すること
 
-今後分離したい処理:
-
-```txt
-material policy
-water ripple
-prism pulse
-```
-
-候補:
-
-```txt
-PlacedPlantMaterialPolicy
-WaterRippleController
-PrismPulseController
-```
+この作品は静的Webアプリケーションです。  
+HTTPサーバー上に設置するだけで動作する構成にしています。
 
 ---
 
-### `InteractionEventManager.js`
+## 補足
 
-今後分離したい処理:
+TextAlive App API は、音楽に合わせてタイミングよく歌詞が動くWebアプリケーションを開発するための JavaScript API です。
 
-```txt
-terrain click effect
-placed object click interaction
-water interaction
-path interaction
-```
-
-候補:
-
-```txt
-TerrainClickEffectController
-PlacedObjectInteractionController
-WaterInteractionController
-PathInteractionController
-```
-
----
-
-### `WordImpactEffectManager.js`
-
-現在かなり多機能です。
-
-分離候補:
-
-```txt
-WordMeteorEffect
-WordIroBloomEffect
-WordRainEffect
-WordPrismEffect
-WordToneEffect
-```
-
----
-
-## `_legacy` について
-
-旧構成・未使用・重複設計のものは `_legacy` に退避しています。
-
-例:
-
-```txt
-AppFlowManager.js
-CinematicCamera.js
-ClusterSpawnManager.js
-LakeTerrainManager.js
-GroundMaterialManager.js
-WaterMaterialManager.js
-PathMaterialManager.js
-SurfaceClassifier.js
-ModelRegistry.js
-SpawnFactory.js
-```
-
-削除ではなく、一時退避です。
-
-必要になった場合は、現行構成に合わせて整理して戻します。
-
----
-
-## 今後の作業メモ
-
-## 優先度 高
-
-- `ProceduralMountainFlowerField.js` の完全正常化
-- `PlacedPlantMaterialPolicy.js` の導入
-- `SurfaceAnchorController.js` の導入
-- 山花を山Groupローカルに固定
-- 山・小島・水面の配置花を wire 表示で安定化
-- `WorldRenderer.js` から山花生成ロジックを分離
-
-## 優先度 中
-
-- `WorldResonanceEffect` が常設花の material を壊さないようにする
-- `PlacedFlowerLightPropagationEffect` の対象を wire material に限定する
-- `EndingWorldResponseEffect` の material 書き換え対象を制限する
-- `InteractionEventManager` から ground bloom と placement の干渉を分離
-
-## 優先度 低
-
-- `WordImpactEffectManager` の分割
-- `ExperiencePhaseDirector` のフレーズ判定整理
-- `MotionTimelineSynchronizer` の復元ロジック整理
-- debug 用 seek panel の本番除外
-
----
-
-## 注意点
-
-## 1. ファイル修正は追記ではなく全置換すること
-
-途中断片が残ると、以下のような壊れ方をします。
-
-```js
-export class Proced =export class ProceduralMountainFlowerField {
-```
-
-```js
-export class PlacedPlantMaterial;export class PlacedPlantMaterialPolicy {
-```
-
-この状態になった場合は、対象ファイルを全削除してから正しいコードを貼り直してください。
-
----
-
-## 2. 同じクラス内に同名メソッドを複数置かないこと
-
-JavaScript の class では後ろの定義が勝ちます。
-
-特に注意:
-
-```txt
-PlacementManager.applyFinalPlacedPlantDepthAnchor
-PlacementManager.isDepthSafePlacedPlantId
-WorldRenderer.lockCameraBehindMikuForEnding
-WordImpactEffectManager.collectBloomTerrainMeshes
-```
-
----
-
-## 3. 毎フレーム Raycast を避けること
-
-とくに山花演出では、以下を避けます。
-
-```txt
-花の数 x 毎フレーム Raycast
-```
-
-山花は近景配置ではなく背景演出なので、簡易式で点を生成し、Pointsで描画します。
-
----
-
-## 4. 配置植物と一時演出植物を混ぜないこと
-
-常設配置花:
-
-```txt
-PlacementManager / PlacedObjectRegistry 管理
-```
-
-一時演出花:
-
-```txt
-EphemeralBloomEffect / WordImpactEffectManager 管理
-```
-
-material を共有しないよう、`SpawnManager.makeInstanceMaterialsUnique()` を必ず通します。
-
----
-
-## 5. TextAlive API の再生開始はユーザー操作後に行うこと
-
-ブラウザの autoplay 制限があるため、音楽再生はユーザー操作後に行います。
-
----
-
-## 現在の安定化キーワード
-
-```txt
-山花は Points
-山花は山Groupローカル
-通常花は wire only
-配置固定は SurfaceAnchorController
-花materialは PlacedPlantMaterialPolicy
-WorldRendererは徐々に薄くする
-```
+本作品では `textalive-app-api` を importmap 経由で読み込み、楽曲・歌詞・再生位置に同期して Three.js の3D演出を制御しています。

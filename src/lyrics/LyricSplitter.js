@@ -1,19 +1,30 @@
+/**
+ * 歌詞分割クラス
+ * ・長い歌詞を自然に分割する
+ * ・意味・区切り・安全位置を考慮
+ */
 export class LyricSplitter {
     constructor(options = {}) {
-        // 長すぎる歌詞を自然に分ける。
+        // 自動分割を開始する長さ
         this.maxLengthBeforeSplit =
             options.maxLengthBeforeSplit ?? 22;
 
+        // 大まかな分割サイズ（目安）
         this.chunkSize =
             options.chunkSize ?? 11;
 
+        // 末尾が短すぎるのを防ぐ最小長
         this.minTailLength =
             options.minTailLength ?? 3;
     }
 
+    /**
+     * メイン分割処理
+     */
     split(text) {
         if (!text) return [];
 
+        // 空白・全角空白除去
         const normalizedText =
             String(text)
                 .replace(/\s+/g, '')
@@ -24,6 +35,7 @@ export class LyricSplitter {
             return [];
         }
 
+        // 特定フレーズの強制分割（後半用）
         const fixedParts =
             this.splitByKnownLateActPhrases(
                 normalizedText
@@ -33,6 +45,7 @@ export class LyricSplitter {
             return fixedParts;
         }
 
+        // 句読点ベース分割
         const punctuationParts =
             this.splitByNaturalPunctuation(
                 normalizedText
@@ -48,6 +61,7 @@ export class LyricSplitter {
 
             if (!trimmedPart) return;
 
+            // 短いならそのまま
             if (
                 trimmedPart.length <=
                 this.maxLengthBeforeSplit
@@ -56,6 +70,7 @@ export class LyricSplitter {
                 return;
             }
 
+            // 意味区切りで分割
             const semanticParts =
                 this.splitBySemanticBreaks(
                     trimmedPart
@@ -72,6 +87,7 @@ export class LyricSplitter {
                     return;
                 }
 
+                // それでも長い場合は安全分割
                 this.splitLongTextSafely(
                     semanticPart
                 ).forEach(chunk => {
@@ -80,16 +96,21 @@ export class LyricSplitter {
             });
         });
 
+        // 空削除して返す
         return finalParts.filter(part => {
             return part.trim() !== '';
         });
     }
 
+    /**
+     * 特定フレーズ（終盤演出用）の固定分割
+     */
     splitByKnownLateActPhrases(text) {
         if (!text) {
             return null;
         }
 
+        // 歩行ループ
         if (
             text.includes('ちょっと進んで止まってを繰り返して') &&
             text.includes('この場所に立っている')
@@ -101,6 +122,7 @@ export class LyricSplitter {
             ];
         }
 
+        // 未来
         if (
             text.includes('これは私のミライ') &&
             text.includes('あなたのミライを創ったコエ')
@@ -111,6 +133,7 @@ export class LyricSplitter {
             ];
         }
 
+        // 木霊
         if (
             text.includes('この先もずっとコエは木霊して')
         ) {
@@ -120,6 +143,7 @@ export class LyricSplitter {
             ];
         }
 
+        // 最終音楽
         if (
             text.includes('このセカイで最後のオンガクになるから')
         ) {
@@ -132,14 +156,22 @@ export class LyricSplitter {
         return null;
     }
 
+    /**
+     * 句読点による自然分割
+     */
     splitByNaturalPunctuation(text) {
         return String(text)
+            // 区切り文字の直後で分割
             .split(/(?<=、|。|？|！|\?|!|」|』|\))/);
     }
 
+    /**
+     * 意味ベースで分割
+     */
     splitBySemanticBreaks(text) {
         if (!text) return [];
 
+        // 分割トリガーキーワード
         const breakPatterns = [
             'そして',
             'けれど',
@@ -159,6 +191,7 @@ export class LyricSplitter {
             const nextParts = [];
 
             parts.forEach(part => {
+                // 短い or 該当しない場合はそのまま
                 if (
                     part.length <= this.maxLengthBeforeSplit ||
                     !part.includes(pattern)
@@ -167,6 +200,7 @@ export class LyricSplitter {
                     return;
                 }
 
+                // キーワードを保持したまま分割
                 const splitParts =
                     this.splitKeepingKeyword(
                         part,
@@ -182,6 +216,9 @@ export class LyricSplitter {
         return parts;
     }
 
+    /**
+     * キーワードを壊さずに分割
+     */
     splitKeepingKeyword(text, keyword) {
         const index =
             text.indexOf(keyword);
@@ -196,6 +233,7 @@ export class LyricSplitter {
         const after =
             text.slice(index);
 
+        // どちらかが短すぎる場合は分割しない
         if (
             before.length < this.minTailLength ||
             after.length < this.minTailLength
@@ -209,6 +247,9 @@ export class LyricSplitter {
         ];
     }
 
+    /**
+     * 長文を安全な位置で分割
+     */
     splitLongTextSafely(text) {
         if (!text) return [];
 
@@ -220,6 +261,7 @@ export class LyricSplitter {
 
         let current = String(text);
 
+        // chunkSizeを目安に分割
         while (current.length > this.chunkSize) {
             const splitIndex =
                 this.findSafeSplitIndex(
@@ -233,6 +275,7 @@ export class LyricSplitter {
             const tail =
                 current.slice(splitIndex);
 
+            // 極端な短さを防止
             if (
                 head.length < this.minTailLength ||
                 tail.length < this.minTailLength
@@ -244,11 +287,13 @@ export class LyricSplitter {
             current = tail;
         }
 
+        // 残り処理
         if (current) {
             if (
                 chunks.length > 0 &&
                 current.length < this.minTailLength
             ) {
+                // 最後に結合
                 chunks[chunks.length - 1] += current;
             } else {
                 chunks.push(current);
@@ -258,29 +303,17 @@ export class LyricSplitter {
         return chunks;
     }
 
+    /**
+     * 安全な分割位置を探す
+     * ・句読点や助詞の近くを優先
+     */
     findSafeSplitIndex(text, preferredIndex) {
         const safeChars = [
-            '、',
-            '。',
-            '？',
-            '！',
-            ',',
-            '.',
-            '?',
-            '!',
-            'で',
-            'に',
-            'を',
-            'が',
-            'は',
-            'と',
-            'から',
-            'まで',
-            'て',
-            'た',
-            'だ',
-            'の',
-            'も'
+            '、','。','？','！',
+            ',','.','?','!',
+            'で','に','を','が','は','と',
+            'から','まで',
+            'て','た','だ','の','も'
         ];
 
         const searchStart =
@@ -295,6 +328,7 @@ export class LyricSplitter {
                 preferredIndex + 6
             );
 
+        // 近い位置から優先的に探索
         for (let i = searchEnd; i >= searchStart; i--) {
             const before =
                 text.slice(0, i);
@@ -315,6 +349,7 @@ export class LyricSplitter {
             const nextChar =
                 text[i];
 
+            // 分割に適した位置
             if (
                 safeChars.includes(prevChar) ||
                 safeChars.includes(nextChar)
@@ -323,6 +358,7 @@ export class LyricSplitter {
             }
         }
 
+        // fallback（強制分割）
         return Math.min(
             preferredIndex,
             text.length - this.minTailLength

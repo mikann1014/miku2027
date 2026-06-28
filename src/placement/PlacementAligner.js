@@ -1,5 +1,19 @@
 import * as THREE from 'three';
 
+/**
+ * PlacementAligner
+ *
+ * ・オブジェクトの「接地（Y位置）」を正しく補正するクラス
+ *
+ * 役割：
+ * - オブジェクトの「底面」を地形にぴったり合わせる
+ * - 不均一な地形に対して最適な高さを選ぶ
+ *
+ * 特徴：
+ * 👉 boundingBoxベース（bottom合わせ）
+ * 👉 複数点サンプリング対応（段差・坂対応）
+ */
+
 export class PlacementAligner {
     constructor(surfacePicker, options = {}) {
         this.surfacePicker = surfacePicker;

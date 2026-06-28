@@ -1,6 +1,28 @@
 import * as THREE from 'three';
 import { MikuEntity } from '../entities/MikuEntity.js';
 
+/**
+ * CharacterManager
+ *
+ * ・ミク（キャラクター）の生成ロジックを制御 * ・ミク（キャラクター）の生成・状態管理・移動制御を行う
+ *
+ * 主な機能：
+ * ・ミクの生成とシーンへの追加
+ * ・移動モード管理（walk / run / turn / stop / 演出系モード）
+ * ・アニメーション再生と遷移制御
+ * ・速度補間による自然な加減速
+ * ・Y座標固定（turnなどの演出用）
+ * ・回転補間（指定角度へスムーズに向ける）
+ * ・コラプス演出（停止→崩れ）シーケンス制御
+ * ・エンディング用の向き・ポーズ制御
+ * ・強制表示・再表示（リビール処理）
+ *
+ * 役割：
+ * キャラクターの「状態・動き・演出」をすべて統括し、
+ * 入力やイベントに応じてアニメーションと物理的な挙動を同期させる
+ * アニメーション（Walk / Run / Turn / 演出系）を一元管理
+*/
+
 export class CharacterManager {
     constructor(scene) {
         this.scene = scene;

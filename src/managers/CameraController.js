@@ -1,115 +1,83 @@
 import * as THREE from 'three';
 
+/**
+ * CameraController
+ *
+ * ・キャラクター（主にミク）を中心としたカメラ制御を行う
+ * ・通常の追従カメラ（ドラッグ回転対応）を提供
+ * ・各種イベント用カメラ演出（エンディング・演出シーケンス）を管理
+ *
+ * 主な機能：
+ * ・マウス / タッチによるカメラ回転操作
+ * ・カメラ入力ロック制御
+ * ・キャラクター背後に戻る補正カメラ
+ * ・演出用カメラ遷移（上昇、発見、俯瞰、静止など）
+ * ・空へ移動する最終カメラ演出（前進 → 上昇）
+ *
+ * 役割：
+ * シーン全体の視点演出を一元管理し、
+ * 通常操作とイベント演出のカメラ動作を切り替える
+ */
+
 export class CameraController {
     constructor(camera, characterManager) {
         this.camera = camera;
         this.characterManager = characterManager;
-
-        // =========================
-        // Normal follow camera
-        // =========================
         this.yaw = 0;
-
         this.isDragging = false;
         this.prevX = 0;
         this.totalDragDistance = 0;
-
         this.dragSensitivity = 0.005;
-
         this.distance = 8;
         this.fixedHeight = 3;
         this.lookAtHeight = 1.2;
-
         this.dragThreshold = 4;
-
-        // =========================
-        // Input lock
-        // =========================
         this.isCameraInputLocked = false;
-
         this.returnBehindMikuActive = false;
         this.returnBehindMikuElapsed = 0;
         this.returnBehindMikuDuration = 2.8;
         this.returnBehindStartYaw = 0;
         this.returnBehindTargetYaw = 0;
-
-        // =========================
-        // Final note ascend camera
-        // =========================
         this.finalNoteAscendActive = false;
         this.finalNoteAscendElapsed = 0;
         this.finalNoteRotateDuration = 3.0;
         this.finalNoteHoldDuration = 4.5;
         this.finalNoteTargetGetter = null;
-
         this.ascendStartQuat = new THREE.Quaternion();
         this.ascendTargetQuat = new THREE.Quaternion();
-
-        // =========================
-        // Ending return camera
-        // =========================
         this.endingReturnActive = false;
         this.endingReturnElapsed = 0;
         this.endingReturnDuration = 5.0;
-
         this.endingReturnStartQuat = new THREE.Quaternion();
         this.endingReturnTargetQuat = new THREE.Quaternion();
-
-        // =========================
-        // Ending discovery camera
-        // =========================
         this.endingDiscoverActive = false;
         this.endingDiscoverElapsed = 0;
         this.endingDiscoverDuration = 8.0;
-
         this.endingDiscoverStartQuat = new THREE.Quaternion();
         this.endingDiscoverTargetQuat = new THREE.Quaternion();
-
-        // =========================
-        // Ending overview camera
-        // =========================
         this.endingOverviewActive = false;
         this.endingOverviewElapsed = 0;
         this.endingOverviewDuration = 8.0;
-
         this.endingOverviewStartPosition = new THREE.Vector3();
         this.endingOverviewTargetPosition = new THREE.Vector3();
-
         this.endingOverviewStartQuat = new THREE.Quaternion();
-
         this.endingOverviewStartFov = camera.fov;
         this.endingOverviewTargetFov = camera.fov;
-
-        // =========================
-        // Ending still camera
-        // =========================
         this.endingStillActive = false;
         this.endingStillElapsed = 0;
         this.endingStillDuration = 4.0;
-
         this.endingStillQuat = new THREE.Quaternion();
-
-        // =========================
-        // Final sky advance camera
-        // その場から前進 → 少し進んでから上昇 → 空だけを見る
-        // =========================
         this.finalSkyActive = false;
         this.finalSkyTime = 0;
         this.finalSkyDuration = 12.5;
-
         this.finalSkyStartPos = new THREE.Vector3();
         this.finalSkyForwardPos = new THREE.Vector3();
         this.finalSkyTargetPos = new THREE.Vector3();
         this.finalSkyForwardDir = new THREE.Vector3(0, 0, -1);
         this.finalSkyRiseTargetPos = new THREE.Vector3();
         this.finalSkyReachedEmitted = false;
-
         this.initInput();
     }
-
-    // =========================
-    // Input
-    // =========================
     initInput() {
         window.addEventListener('mousedown', event => {
             if (this.isUiEvent(event)) {
@@ -272,9 +240,6 @@ export class CameraController {
         return false;
     }
 
-    // =========================
-    // Input lock
-    // =========================
     setInputLocked(locked) {
         this.isCameraInputLocked = !!locked;
 
@@ -288,9 +253,6 @@ export class CameraController {
         );
     }
 
-    // =========================
-    // Return behind Miku
-    // =========================
     startReturnBehindMiku(options = {}) {
         this.returnBehindMikuActive = true;
         this.returnBehindMikuElapsed = 0;
@@ -353,9 +315,6 @@ export class CameraController {
         }
     }
 
-    // =========================
-    // Utility
-    // =========================
     smooth01(t) {
         const x =
             THREE.MathUtils.clamp(
@@ -381,9 +340,6 @@ export class CameraController {
             .setFromRotationMatrix(matrix);
     }
 
-    // =========================
-    // Final note ascend camera
-    // =========================
     startFinalNoteAscendFollow(targetGetter, options = {}) {
         this.finalNoteAscendActive = true;
         this.finalNoteAscendElapsed = 0;
@@ -517,10 +473,6 @@ export class CameraController {
         );
     }
 
-    // =========================
-    // Final sky advance
-    // その場から前進 → 少し進んでから上昇 → 空だけ
-    // =========================
 startFinalSkyAdvance(options = {}) {
     this.finalSkyActive = true;
     this.finalSkyTime = 0;
@@ -541,8 +493,6 @@ startFinalSkyAdvance(options = {}) {
         forward
     );
 
-    // 水平方向の前進。
-    // これで後退や下降に見える事故を避ける。
     forward.y = 0;
 
     if (forward.lengthSq() < 0.0001) {
@@ -558,8 +508,6 @@ startFinalSkyAdvance(options = {}) {
     this.finalSkyStartPos.copy(
         this.camera.position
     );
-
-    // Phase A: まず前進
     this.finalSkyForwardPos.copy(
         this.camera.position
     );
@@ -569,7 +517,6 @@ startFinalSkyAdvance(options = {}) {
         options.forwardDistance ?? 95
     );
 
-    // Phase B: 上昇しながらさらに前進
     this.finalSkyTargetPos.copy(
         this.finalSkyForwardPos
     );
@@ -611,10 +558,6 @@ updateFinalSky(delta) {
 
     const forwardPhaseEnd = 0.38;
 
-    // =========================
-    // Phase A
-    // まずその場から前進
-    // =========================
     if (t < forwardPhaseEnd) {
         const localT =
             THREE.MathUtils.clamp(
@@ -654,10 +597,6 @@ updateFinalSky(delta) {
         return false;
     }
 
-    // =========================
-    // Phase B
-    // 前進後、さらに前進しながらゆっくり上昇
-    // =========================
     const riseT =
         THREE.MathUtils.clamp(
             (t - forwardPhaseEnd) /
@@ -719,9 +658,6 @@ updateFinalSky(delta) {
 
     return false;
 }
-    // =========================
-    // Ending return
-    // =========================
     startEndingReturn(targetGetter, options = {}) {
         this.finalNoteAscendActive = false;
 
@@ -790,9 +726,6 @@ updateFinalSky(delta) {
         }
     }
 
-    // =========================
-    // Ending discovery
-    // =========================
     startEndingDiscover(targetGetter, options = {}) {
         this.endingDiscoverActive = true;
         this.endingDiscoverElapsed = 0;
@@ -855,9 +788,6 @@ updateFinalSky(delta) {
         }
     }
 
-    // =========================
-    // Ending overview
-    // =========================
     startEndingOverview(options = {}) {
         this.endingOverviewActive = true;
         this.endingOverviewElapsed = 0;
@@ -953,9 +883,6 @@ updateFinalSky(delta) {
         }
     }
 
-    // =========================
-    // Ending still
-    // =========================
     startEndingStill(options = {}) {
         this.endingStillActive = true;
         this.endingStillElapsed = 0;
@@ -984,9 +911,6 @@ updateFinalSky(delta) {
         }
     }
 
-    // =========================
-    // Update
-    // =========================
     update(delta) {
         const miku =
             this.characterManager.getMiku();
