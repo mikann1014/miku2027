@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>世界最後の音楽隊</title>
+
+    <link rel="stylesheet" href="./style.css">
+
+    <script>
+        console.log('[index.html] loaded');
+    </script>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "textalive-app-api": "https://esm.sh/textalive-app-api",
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/examples/jsm/loaders/GLTFLoader": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js",
+            "three/examples/jsm/objects/Reflector": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Reflector.js"
+        }
+    }
+    </script>
+</head>
+
+<body>
+    <div id="media"></div>
+
+    <div id="status">
+        CONNECTING TO WORLD...
+    </div>
+
+    <div id="opening-root">
+        <section
+            id="screen-title"
+            class="opening-screen is-active"
+        >
+            <div class="opening-inner">
+                <div class="opening-label">
+                    初音ミク「マジカルミライ 2026」楽曲コンテスト応募作品
+                </div>
+
+                <h1 class="opening-title">
+                    世界最後の音楽隊
+                </h1>
+
+                <div class="opening-credits">
+                    <p>
+                        <span>Lyrics &amp; Music</span>
+                        夏山よつぎ
+                    </p>
+
+                    <p>
+                        <span>Arrangement &amp; Mix</span>
+                        ど〜ぱみん
+                    </p>
+
+                    <p>
+                        <span>Vocal</span>
+                        初音ミク
+                    </p>
+
+                    <p>
+                        <span>Chorus</span>
+                        MEIKO / KAITO / 鏡音リン / 鏡音レン / 巡音ルカ
+                    </p>
+                </div>
+
+                <button
+                    id="btn-title-connect"
+                    class="opening-button"
+                    type="button"
+                >
+                    クリックして接続
+                </button>
+            </div>
+        </section>
+
+        <section
+            id="screen-intro"
+            class="opening-screen"
+        >
+            <div class="opening-inner opening-intro">
+                <h2 class="opening-heading">
+                    この世界について
+                </h2>
+
+                <p>
+                    この世界は、音楽とともに少しずつ姿を変えていきます。
+                </p>
+
+                <p>
+                    気になったものがあれば、触れてみてください。
+                </p>
+
+                <p>
+                    世界が小さな反応を返すかもしれません。
+                </p>
+
+                <p>
+                    時間によってその反応が変化することもあります。
+                </p>
+
+                <button
+                    id="btn-intro-start"
+                    class="opening-button"
+                    type="button"
+                >
+                    クリックして歌を聴く
+                </button>
+            </div>
+        </section>
+    </div>
+
+    <div id="item-menu">
+        <button data-id="flower1" class="active">
+            FLOWER 1
+        </button>
+
+        <button data-id="flower2">
+            FLOWER 2
+        </button>
+
+        <button data-id="flower3">
+            FLOWER 3
+        </button>
+
+        <button data-id="Grass1">
+            GRASS 1
+        </button>
+
+        <button data-id="Grass2">
+            GRASS 2
+        </button>
+
+        <button data-id="Grass3">
+            GRASS 3
+        </button>
+
+        <button data-id="Leaf">
+            LEAF<br>
+            WATER
+        </button>
+    </div>
+
+    <script>
+        console.log('[index.html] before main.js');
+    </script>
+
+    <script
+        type="module"
+        src="./main.js"
+    ></script>
+</body>
+</html>
