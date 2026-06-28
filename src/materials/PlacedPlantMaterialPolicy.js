@@ -82,7 +82,7 @@ export class PlacedPlantMaterialPolicy {
 
     /**
      * =========================
-     * ✅ Wireマテリアル
+     * Wireマテリアル
      * =========================
      */
     applyWireMaterial(child) {
@@ -146,7 +146,7 @@ export class PlacedPlantMaterialPolicy {
 
     /**
      * =========================
-     * ✅ Face（不可視）
+     * Face（不可視）
      * =========================
      */
     applyInvisibleFaceMaterial(child) {
