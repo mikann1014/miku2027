@@ -52,10 +52,7 @@ export const ASSETS = [
     'Prism3',
 
     // 音用オブジェクト
-    'tone',
-
-    // 後半演出（鳥）
-    'bird'
+    'tone'
 ];
 
 
@@ -112,9 +109,6 @@ export const SCALES = {
 
     // 音ノート
     tone: 0.55,
-
-    // 鳥（カメラ映り考慮で少し大きい）
-    bird: 0.2
 };
 
 
