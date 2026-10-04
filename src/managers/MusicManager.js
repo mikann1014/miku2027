@@ -1,24 +1,13 @@
 import { Player } from 'textalive-app-api';
 
-/**
- * MusicManager
- *
- * ・TextAlive Player のラッパークラス
- * ・楽曲のロード / 再生 / シーク / 解析（歌詞・コーラス）を管理
- *
- * フロー：
- *   init → prepareSong → startPreparedSong → update
- */
 export class MusicManager {
-
     constructor(appToken, mediaElementSelector) {
-
         this.appToken = appToken || '';
-        this.mediaElementSelector = mediaElementSelector || '#media';
+        this.mediaElementSelector =
+            mediaElementSelector || '#media';
 
         this.player = null;
 
-        // --- 状態 ---
         this.isAppReady = false;
         this.isLoaded = false;
         this.isPrepared = false;
@@ -26,66 +15,88 @@ export class MusicManager {
         this.isUserPaused = false;
 
         this.preparePromise = null;
-
-        // コールバック
         this.callbacks = {};
     }
 
+    init(callbacks = {}) {
+        this.callbacks = callbacks;
 
-    /**
-     * 初期化
-     */
-    init(callbacks) {
+        let mediaElement =
+            document.querySelector(
+                this.mediaElementSelector
+            );
 
-        this.callbacks = callbacks || {};
+        if (!mediaElement) {
+            mediaElement =
+                document.createElement('div');
 
-        // --- audio要素取得 or 生成 ---
-        let audioElement =
-            document.querySelector(this.mediaElementSelector);
+            mediaElement.id =
+                this.mediaElementSelector.replace(
+                    '#',
+                    ''
+                );
 
-        if (!audioElement) {
-            audioElement = document.createElement('audio');
-
-            audioElement.id = this.mediaElementSelector.replace('#', '');
-            audioElement.controls = false;
-
-            // 見えないようにする
-            audioElement.style.position = 'absolute';
-            audioElement.style.opacity = '0';
-            audioElement.style.pointerEvents = 'none';
-
-            document.body.appendChild(audioElement);
+            document.body.appendChild(
+                mediaElement
+            );
         }
 
-        // --- Player生成 ---
         this.player = new Player({
             app: {
                 token: this.appToken
             },
-            mediaElement: audioElement,
+
+            mediaElement,
+
             mediaBannerPosition: 'bottom right',
+
             valenceArousalEnabled: false,
             vocalAmplitudeEnabled: false,
             mediaAutoplay: false
         });
 
-        // --- イベント登録 ---
         this.player.addListener({
-
-            onAppReady: () => {
+            onAppReady: app => {
                 this.isAppReady = true;
-                this.callbacks.onAppReady?.();
+
+                console.log(
+                    '[MusicManager] App ready:',
+                    app
+                );
+
+                this.callbacks.onAppReady?.(
+                    app
+                );
             },
 
             onSongLoad: song => {
-                this.isLoaded = true;
+                console.log(
+                    '[MusicManager] Song loaded:',
+                    song
+                );
             },
 
             onVideoReady: video => {
-                this.callbacks.onVideoReady?.(video);
+                console.log(
+                    '[MusicManager] Video ready:',
+                    video
+                );
+
+                this.isLoaded = true;
+                this.isPrepared = true;
+
+                this.callbacks.onVideoReady?.(
+                    video
+                );
+
+                this.callbacks.onLoadComplete?.();
             },
 
             onTextLoad: () => {
+                console.log(
+                    '[MusicManager] Text loaded.'
+                );
+
                 this.callbacks.onTextLoad?.(
                     this.player.video
                 );
@@ -93,21 +104,32 @@ export class MusicManager {
 
             onPlay: () => {
                 this.isUserPaused = false;
+
+                console.log(
+                    '[MusicManager] Playback started.'
+                );
             },
 
-            onPause: () => {},
+            onPause: () => {
+                console.log(
+                    '[MusicManager] Playback paused.'
+                );
+            },
 
-            /**
-             * 時間更新（最重要）
-             */
             onTimeUpdate: position => {
-
                 if (
                     typeof position !== 'number' ||
                     !Number.isFinite(position)
-                ) return;
+                ) {
+                    return;
+                }
 
-                if (!this.player || !this.player.video) return;
+                if (
+                    !this.player ||
+                    !this.player.video
+                ) {
+                    return;
+                }
 
                 const rawDuration =
                     this.player.video.duration;
@@ -119,24 +141,30 @@ export class MusicManager {
                         ? rawDuration
                         : 1;
 
-                // 進行率（0〜1）
                 const progress =
                     Math.max(
                         0,
-                        Math.min(position / duration, 1)
+                        Math.min(
+                            position / duration,
+                            1
+                        )
                     );
 
                 let isChorus = false;
                 let currentWord = null;
 
-                // コーラス判定
                 try {
-                    isChorus = !!this.player.findChorus(position);
+                    isChorus =
+                        !!this.player.findChorus(
+                            position
+                        );
                 } catch {}
 
-                // 単語取得
                 try {
-                    currentWord = this.player.findWord(position);
+                    currentWord =
+                        this.player.findWord(
+                            position
+                        );
                 } catch {}
 
                 this.callbacks.onTimeUpdate?.(
@@ -149,23 +177,31 @@ export class MusicManager {
         });
     }
 
-
-    /**
-     * 楽曲準備
-     */
     async prepareSong() {
+        if (!this.player) {
+            throw new Error(
+                'TextAlive Player is not initialized.'
+            );
+        }
 
-        if (!this.player) return;
-        if (!this.isAppReady) return;
+        if (!this.isAppReady) {
+            throw new Error(
+                'TextAlive App is not ready yet.'
+            );
+        }
 
-        if (this.isPrepared) return;
+        if (this.isPrepared) {
+            return;
+        }
 
         if (this.preparePromise) {
             return this.preparePromise;
         }
 
         this.isPreparing = true;
-        this.preparePromise = this.prepareSongInternal();
+
+        this.preparePromise =
+            this.prepareSongInternal();
 
         try {
             await this.preparePromise;
@@ -174,109 +210,99 @@ export class MusicManager {
         }
     }
 
-
-    /**
-     * 内部準備処理
-     */
     async prepareSongInternal() {
+        const songUrl =
+            'https://piapro.jp/t/B3yJ';
 
-        // AbortErrorを無視
-        const hideAbortError = event => {
-
-            if (
-                event.reason &&
-                event.reason.name === 'AbortError'
-            ) {
-                event.preventDefault();
-            }
-        };
-
-        window.addEventListener(
-            'unhandledrejection',
-            hideAbortError
+        console.log(
+            '[MusicManager] Loading song:',
+            songUrl
         );
 
         try {
-            // 楽曲ロード
             await this.player.createFromSongUrl(
-                'https://piapro.jp/t/B3yJ/20251215061727'
+                songUrl
             );
 
             await this.waitUntilSongLoaded();
 
-            // 少し待つ（安定化）
-            await new Promise(resolve => {
-                setTimeout(resolve, 250);
-            });
-
-            this.isPrepared = true;
-
-            this.callbacks.onLoadComplete?.();
-
+            console.log(
+                '[MusicManager] Song preparation completed.'
+            );
         } catch (error) {
-
+            this.isLoaded = false;
             this.isPrepared = false;
             this.preparePromise = null;
 
+            console.error(
+                '[MusicManager] Failed to prepare song:',
+                error
+            );
+
             throw error;
-
-        } finally {
-
-            setTimeout(() => {
-                window.removeEventListener(
-                    'unhandledrejection',
-                    hideAbortError
-                );
-            }, 1000);
         }
     }
 
+    waitUntilSongLoaded(timeoutMs = 30000) {
+        return new Promise(
+            (resolve, reject) => {
+                const startTime =
+                    Date.now();
 
-    /**
-     * ロード待機
-     */
-    waitUntilSongLoaded() {
+                const interval =
+                    setInterval(() => {
+                        if (
+                            this.isLoaded &&
+                            this.player &&
+                            this.player.video
+                        ) {
+                            clearInterval(
+                                interval
+                            );
 
-        return new Promise(resolve => {
+                            resolve();
+                            return;
+                        }
 
-            const interval = setInterval(() => {
+                        if (
+                            Date.now() - startTime >=
+                            timeoutMs
+                        ) {
+                            clearInterval(
+                                interval
+                            );
 
-                if (
-                    this.isLoaded &&
-                    this.player &&
-                    this.player.video
-                ) {
-                    clearInterval(interval);
-                    resolve();
-                }
-
-            }, 50);
-        });
+                            reject(
+                                new Error(
+                                    'Song loading timed out.'
+                                )
+                            );
+                        }
+                    }, 50);
+            }
+        );
     }
 
-
-    /**
-     * 再生開始
-     */
     async startPreparedSong() {
-
-        if (!this.player) return;
+        if (!this.player) {
+            throw new Error(
+                'TextAlive Player is not initialized.'
+            );
+        }
 
         if (!this.isPrepared) {
             await this.prepareSong();
         }
 
         try {
-
             await this.player.requestPlay();
-
         } catch (error) {
-
-            if (error.name === 'AbortError') {
-
-                // リトライ
+            if (error?.name === 'AbortError') {
                 await new Promise(resolve => {
-                    setTimeout(resolve, 300);
+                    setTimeout(
+                        resolve,
+                        300
+                    );
                 });
 
                 await this.player.requestPlay();
@@ -288,96 +314,92 @@ export class MusicManager {
         }
     }
 
-
     requestPlay() {
-        if (!this.player) return;
-        this.player.requestPlay();
+        if (!this.player) {
+            return;
+        }
+
+        return this.player.requestPlay();
     }
 
     requestPauseByUser() {
-        if (!this.player) return;
+        if (!this.player) {
+            return;
+        }
 
         this.isUserPaused = true;
-        this.player.requestPause();
+
+        return this.player.requestPause();
     }
 
-
-    /**
-     * シーク
-     */
     seekTo(position) {
-
-        if (!this.player) return;
+        if (!this.player) {
+            return;
+        }
 
         if (
             typeof position !== 'number' ||
             !Number.isFinite(position)
-        ) return;
+        ) {
+            return;
+        }
 
-        const duration = this.getDuration();
+        const duration =
+            this.getDuration();
 
         const target =
             Math.max(
                 0,
                 Math.min(
                     position,
-                    duration > 0 ? duration : position
+                    duration > 0
+                        ? duration
+                        : position
                 )
             );
 
-        this.callbacks.onSeek?.(target);
+        this.callbacks.onSeek?.(
+            target
+        );
 
         try {
-            this.player.requestMediaSeek(target);
+            this.player.requestMediaSeek(
+                target
+            );
         } catch {}
     }
 
-
-    /**
-     * 再生位置取得
-     */
     getPosition() {
-
         const position =
             this.player?.timer?.position ??
             this.player?.mediaPosition ??
             0;
 
-        return typeof position === 'number' &&
+        return (
+            typeof position === 'number' &&
             Number.isFinite(position)
+        )
             ? position
             : 0;
     }
 
-
-    /**
-     * 再生時間取得
-     */
     getDuration() {
-
         const duration =
             this.player?.video?.duration;
 
-        return typeof duration === 'number' &&
+        return (
+            typeof duration === 'number' &&
             Number.isFinite(duration)
+        )
             ? duration
             : 0;
     }
 
-
-    /**
-     * フル開始
-     */
     async startAndPlay() {
-
         await this.prepareSong();
         await this.startPreparedSong();
     }
 
-
-    /**
-     * 現在時間（別名）
-     */
     getCurrentTime() {
         return this.getPosition();
     }
