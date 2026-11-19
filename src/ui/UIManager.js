@@ -1,240 +1,88 @@
+
 export class UIManager {
-    constructor(
-        onTitleConnectCallback,
-        onIntroStartCallback
-    ) {
-        // ========================================
-        // DOM取得
-        // ========================================
+    constructor(callbacks = {}) {
+        this.callbacks = callbacks;
 
-        this.statusText =
-            document.querySelector('#status');
+        this.screenTitle = document.querySelector('#screen-title');
+        this.screenIntro = document.querySelector('#screen-intro');
 
-        this.openingRoot =
-            document.querySelector('#opening-root');
+        this.connectButton = document.querySelector('#btn-title-connect');
+        this.startButton = document.querySelector('#btn-intro-start');
 
-        this.titleScreen =
-            document.querySelector('#screen-title');
+        this.statusElement = document.querySelector('#status');
+        this.introStatusElement = document.querySelector('#intro-status');
 
-        this.introScreen =
-            document.querySelector('#screen-intro');
+        this.waveformPanel = document.querySelector('#waveform-panel');
 
-        this.titleConnectButton =
-            document.querySelector('#btn-title-connect');
+        this.connectButton?.addEventListener('click', async () => {
+            this.connectButton.disabled = true;
 
-        this.introStartButton =
-            document.querySelector('#btn-intro-start');
+            try {
+                await this.callbacks.onTitleConnect?.();
+            } catch (error) {
+                console.error(error);
+                this.setStatus(
+                    `接続または楽曲の読み込みに失敗しました。${error?.message || ''}`
+                );
+                this.connectButton.disabled = false;
+            }
+        });
 
+        this.startButton?.addEventListener('click', async () => {
+            this.startButton.disabled = true;
 
-        // ========================================
-        // Callback
-        // ========================================
-
-        this.onTitleConnect =
-            onTitleConnectCallback;
-
-        this.onIntroStart =
-            onIntroStartCallback;
-
-
-        // ========================================
-        // 状態
-        // ========================================
-
-        this.currentScreen = 'title';
-
-
-        // ========================================
-        // 初期化
-        // ========================================
-
-        this.init();
+            try {
+                await this.callbacks.onIntroStart?.();
+            } catch (error) {
+                console.error(error);
+                this.setIntroStatus(
+                    `再生を開始できませんでした。${error?.message || ''}`
+                );
+                this.startButton.disabled = false;
+            }
+        });
     }
-
-
-    // ========================================
-    // 初期化
-    // ========================================
-
-    init() {
-        this.hideStatus();
-
-        this.showTitleScreen();
-
-
-        // ========================================
-        // タイトル画面
-        // 「クリックして接続」
-        // ========================================
-
-        if (this.titleConnectButton) {
-            this.titleConnectButton.addEventListener(
-                'click',
-                event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (
-                        this.currentScreen !== 'title'
-                    ) {
-                        return;
-                    }
-
-                    if (
-                        typeof this.onTitleConnect ===
-                        'function'
-                    ) {
-                        this.onTitleConnect();
-                    }
-                }
-            );
-        }
-
-
-        // ========================================
-        // 説明画面
-        // 「クリックして歌を聴く」
-        // ========================================
-
-        if (this.introStartButton) {
-            this.introStartButton.addEventListener(
-                'click',
-                event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (
-                        this.currentScreen !== 'intro'
-                    ) {
-                        return;
-                    }
-
-                    if (
-                        typeof this.onIntroStart ===
-                        'function'
-                    ) {
-                        this.onIntroStart();
-                    }
-                }
-            );
-        }
-    }
-
-
-    // ========================================
-    // タイトル画面表示
-    // ========================================
 
     showTitleScreen() {
-        this.currentScreen = 'title';
-
-        if (this.openingRoot) {
-            this.openingRoot.style.display = 'block';
-            this.openingRoot.style.pointerEvents = 'auto';
-        }
-
-        if (this.titleScreen) {
-            this.titleScreen.classList.add('is-active');
-        }
-
-        if (this.introScreen) {
-            this.introScreen.classList.remove(
-                'is-active'
-            );
-        }
+        this.screenTitle?.classList.remove('hidden');
+        this.screenIntro?.classList.add('hidden');
     }
-
-
-    // ========================================
-    // 説明画面表示
-    // ========================================
 
     showIntroScreen() {
-        this.currentScreen = 'intro';
-
-        if (this.openingRoot) {
-            this.openingRoot.style.display = 'block';
-            this.openingRoot.style.pointerEvents = 'auto';
-        }
-
-        if (this.titleScreen) {
-            this.titleScreen.classList.remove(
-                'is-active'
-            );
-        }
-
-        if (this.introScreen) {
-            this.introScreen.classList.add(
-                'is-active'
-            );
-        }
+        this.screenTitle?.classList.add('hidden');
+        this.screenIntro?.classList.remove('hidden');
     }
-
-
-    // ========================================
-    // オープニング画面を消す
-    // ========================================
 
     hideOpeningScreens() {
-        this.currentScreen = 'playing';
+        this.screenTitle?.classList.add('hidden');
+        this.screenIntro?.classList.add('hidden');
+    }
 
-        if (this.titleScreen) {
-            this.titleScreen.classList.remove(
-                'is-active'
-            );
-        }
+    showWaveform() {
+        this.waveformPanel?.classList.remove('hidden');
+    }
 
-        if (this.introScreen) {
-            this.introScreen.classList.remove(
-                'is-active'
-            );
-        }
-
-        if (this.openingRoot) {
-            this.openingRoot.style.pointerEvents =
-                'none';
-
-            setTimeout(() => {
-                if (
-                    this.currentScreen ===
-                    'playing'
-                ) {
-                    this.openingRoot.style.display =
-                        'none';
-                }
-            }, 800);
+    setStatus(message) {
+        if (this.statusElement) {
+            this.statusElement.textContent = message;
         }
     }
 
-
-    // ========================================
-    // ローディング表示
-    // ========================================
-
-    showLoading(
-        text = 'LOADING...'
-    ) {
-        if (!this.statusText) {
-            return;
+    setIntroStatus(message) {
+        if (this.introStatusElement) {
+            this.introStatusElement.textContent = message;
         }
-
-        this.statusText.innerText = text;
-
-        this.statusText.style.display =
-            'block';
     }
 
-
-    // ========================================
-    // ローディング非表示
-    // ========================================
-
-    hideStatus() {
-        if (!this.statusText) {
-            return;
+    setStartButtonEnabled(enabled) {
+        if (this.startButton) {
+            this.startButton.disabled = !enabled;
         }
+    }
 
-        this.statusText.style.display =
-            'none';
+    setConnectButtonEnabled(enabled) {
+        if (this.connectButton) {
+            this.connectButton.disabled = !enabled;
+        }
     }
 }
