@@ -317,3 +317,169 @@ button { font: inherit; }
 /* @media (hover: hover) and (pointer: fine) {
     .touch-controls { display: none; }
 } */
+
+/* ── 説明画面 ── */
+.how-to-play {
+    margin: 24px auto 28px;
+    padding: 20px 24px;
+    width: min(100%, 480px);
+    border: 1px solid rgba(112,214,255,0.2);
+    border-radius: 14px;
+    background: rgba(112,214,255,0.05);
+    text-align: left;
+}
+
+.how-title {
+    margin: 0 0 12px;
+    color: #70d6ff;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+}
+
+.how-to-play ul {
+    margin: 0 0 14px;
+    padding-left: 1.4em;
+    color: #c2c5d4;
+    line-height: 2.0;
+    font-size: 0.9rem;
+}
+
+.controls-hint {
+    display: flex;
+    gap: 20px;
+    color: #858ba3;
+    font-size: 0.8rem;
+}
+
+/* ── 曲選択画面 ── */
+.opening-select {
+    width: min(100%, 640px);
+    padding: 0 0 20px;
+}
+
+.opening-select .opening-heading {
+    margin-bottom: 10px;
+}
+
+.song-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 12px 0 0;
+    max-height: 62vh;
+    overflow-y: auto;
+    border: 2px solid rgba(112,214,255,0.25);
+    border-radius: 10px;
+    background: rgba(10,14,30,0.7);
+}
+
+/* スクロールバー */
+.song-list::-webkit-scrollbar       { width: 6px; }
+.song-list::-webkit-scrollbar-track { background: transparent; }
+.song-list::-webkit-scrollbar-thumb { background: rgba(112,214,255,0.3); border-radius: 3px; }
+
+.song-card {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+    border: none;
+    border-bottom: 1px solid rgba(112,214,255,0.12);
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    transition: background 100ms;
+    -webkit-tap-highlight-color: transparent;
+    width: 100%;
+}
+
+.song-card:last-child { border-bottom: none; }
+
+.song-card:hover,
+.song-card:focus {
+    background: rgba(112,214,255,0.10);
+    outline: none;
+}
+
+.song-card:active {
+    background: rgba(112,214,255,0.20);
+}
+
+/* 左のアイコン帯 */
+.song-icon {
+    flex-shrink: 0;
+    width: 52px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(112,214,255,0.08);
+    border-right: 1px solid rgba(112,214,255,0.15);
+    font-size: 1.4rem;
+}
+
+.song-info {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 16px;
+}
+
+.song-name {
+    margin: 0 0 2px;
+    color: #e8f0ff;
+    font-size: 1.0rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.song-meta {
+    color: #6a7090;
+    font-size: 0.76rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 右の矢印 */
+.song-arrow {
+    flex-shrink: 0;
+    padding: 0 16px;
+    color: rgba(112,214,255,0.4);
+    font-size: 0.9rem;
+}
+
+/* ── イントロ画面（曲選択後） ── */
+.intro-artist {
+    margin: 4px 0 24px;
+    color: #70d6ff;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+    .song-card { padding: 12px 14px; gap: 10px; }
+    .song-name  { font-size: 0.92rem; }
+    .how-to-play { padding: 16px; }
+    .how-to-play ul { font-size: 0.85rem; }
+}
+
+.song-card.selected {
+    background: rgba(112,214,255,0.14);
+}
+
+.song-card.selected .song-name {
+    color: #70d6ff;
+}
+
+.song-card.selected .song-arrow {
+    color: rgba(112,214,255,0.9);
+}
+
+@media (max-width: 600px) {
+    .song-icon  { width: 44px; height: 50px; font-size: 1.2rem; }
+    .song-name  { font-size: 0.92rem; }
+    .song-info  { padding: 8px 12px; }
+    .song-arrow { padding: 0 12px; }
+}

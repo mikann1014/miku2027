@@ -154,8 +154,17 @@ export class MusicManager {
         }
     }
 
+    setSongUrl(url) {
+        this._songUrl     = url;
+        // 新しい曲を選んだら準備状態をリセット
+        this.isLoaded     = false;
+        this.isPrepared   = false;
+        this.preparePromise = null;
+        this.isVocalAmplitudeLoaded = false;
+    }
+
     async prepareSongInternal() {
-        const songUrl = 'https://piapro.jp/t/B3yJ';
+        const songUrl = this._songUrl || 'https://piapro.jp/t/B3yJ';
 
         console.log('[MusicManager] Loading song:', songUrl);
 

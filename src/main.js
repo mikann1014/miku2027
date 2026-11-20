@@ -35,9 +35,11 @@ const MAX_WAVEFORM_ATTEMPTS   = 60;
 const WAVEFORM_RETRY_INTERVAL = 500;
 
 // ─── UI 初期化 ────────────────────────────────────────────────
+let selectedSong = null;
+
 uiManager = new UIManager({
-    onTitleConnect: handleTitleConnect,
-    onIntroStart:   handleIntroStart
+    onSongSelect:  handleSongSelect,
+    onIntroStart:  handleIntroStart
 });
 
 uiManager.showTitleScreen();
@@ -135,13 +137,30 @@ musicManager.init({
 
 // ─── 画面遷移ハンドラ ─────────────────────────────────────────
 
-async function handleTitleConnect() {
-    uiManager.setTitleStatus('楽曲を読み込んでいます…');
+async function handleSongSelect(song) {
+    selectedSong = song;
+    uiManager.showIntroScreen(song);
+    uiManager.setIntroStatus('楽曲を読み込んでいます…');
+    uiManager.setStartButtonEnabled(false);
+
+    // MusicManager の songUrl を差し替えて準備
+    musicManager.setSongUrl(song.url);
+
+    if (!musicManager.isAppReady) {
+        // AppReady 待ち（onAppReady 後に再試行）
+        musicManager._pendingSong = song;
+        return;
+    }
+
+    await _prepareSong();
+}
+
+async function _prepareSong() {
+    uiManager.setIntroStatus('楽曲を読み込んでいます…');
     await musicManager.prepareSong();
     duration = musicManager.getDuration();
     console.log('[Main] Music prepared.');
 
-    uiManager.showIntroScreen();
     uiManager.setIntroStatus('波形データを準備しています…');
     uiManager.setStartButtonEnabled(true);
     uiManager.showWaveform();

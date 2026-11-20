@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>世界最後の音楽隊</title>
+    <title>世界最後の音楽隊 — Lyric Runner</title>
     <link rel="stylesheet" href="./style.css">
-
     <script type="importmap">
     {
         "imports": {
@@ -14,37 +13,34 @@
     }
     </script>
 </head>
-
 <body>
     <div id="media"></div>
     <div id="status">CONNECTING TO MUSIC...</div>
 
+    <!-- ゲーム本体 -->
     <main id="app">
         <section id="waveform-panel" class="waveform-panel hidden">
             <div class="waveform-heading">
                 <div>
-                    <p class="eyebrow">MUSIC VISUALIZATION</p>
-                    <h2>世界最後の音楽隊</h2>
+                    <p class="eyebrow">LYRIC RUNNER</p>
+                    <h2 id="playing-title">世界最後の音楽隊</h2>
                 </div>
                 <div class="waveform-controls">
                     <span id="waveform-time">0:00 / 0:00</span>
                 </div>
             </div>
-
             <div class="waveform-frame">
                 <canvas id="waveform-canvas"></canvas>
                 <div id="waveform-placeholder" class="waveform-placeholder">
                     楽曲の波形データを読み込んでいます…
                 </div>
             </div>
-
-            <!-- スマホ用タッチコントローラー -->
             <div id="touch-controls" class="touch-controls">
                 <div class="touch-left">
-                    <button id="btn-left" class="touch-btn" type="button">◀</button>
+                    <button id="btn-left"  class="touch-btn" type="button">◀</button>
                 </div>
                 <div class="touch-center">
-                    <button id="btn-jump" class="touch-btn touch-btn-jump" type="button">JUMP</button>
+                    <button id="btn-jump"  class="touch-btn touch-btn-jump" type="button">JUMP</button>
                 </div>
                 <div class="touch-right">
                     <button id="btn-right" class="touch-btn" type="button">▶</button>
@@ -53,39 +49,61 @@
         </section>
     </main>
 
+    <!-- 画面レイヤー -->
     <div id="opening-root">
+
+        <!-- 画面①：タイトル＋説明 -->
         <section id="screen-title" class="opening-screen">
             <div class="opening-inner">
-                <div class="opening-label">
-                    初音ミク「マジカルミライ 2026」楽曲コンテスト応募作品
+                <div class="opening-label">初音ミク「マジカルミライ 2026」楽曲コンテスト</div>
+                <h1 class="opening-title">Lyric Runner</h1>
+
+                <div class="how-to-play">
+                    <p class="how-title">🎵 あそびかた</p>
+                    <ul>
+                        <li>歌詞に合わせて波形の地形をキャラが走る</li>
+                        <li>上空に歌詞が表示され、文字が降ってくる</li>
+                        <li>降ってくる文字にぶつかるとスコアが上がる</li>
+                        <li>波形の壁に当たると後ろに押し戻される</li>
+                    </ul>
+                    <div class="controls-hint">
+                        <span>⌨️ WASD / スペース</span>
+                        <span>📱 画面下のボタン</span>
+                    </div>
                 </div>
-                <h1 class="opening-title">世界最後の音楽隊</h1>
-                <div class="opening-credits">
-                    <p><span>Lyrics &amp; Music</span>夏山よつぎ</p>
-                    <p><span>Arrangement &amp; Mix</span>ど〜ぱみん</p>
-                    <p><span>Vocal</span>初音ミク</p>
-                    <p><span>Chorus</span>MEIKO / KAITO / 鏡音リン / 鏡音レン / 巡音ルカ</p>
-                </div>
-                <button id="btn-title-connect" class="opening-button" type="button">
-                    クリックして接続
+
+                <button id="btn-to-select" class="opening-button" type="button">
+                    曲を選ぶ →
                 </button>
                 <p id="status-title" class="opening-status"></p>
             </div>
         </section>
 
+        <!-- 画面②：曲選択 -->
+        <section id="screen-select" class="opening-screen hidden">
+            <div class="opening-inner opening-select">
+                <div class="opening-label">初音ミク「マジカルミライ 2026」プログラミング・コンテスト 対象楽曲</div>
+                <h2 class="opening-heading">曲を選んでください</h2>
+                <div id="song-list" class="song-list">
+                    <!-- JS で生成 -->
+                </div>
+                <p id="status-select" class="opening-status"></p>
+            </div>
+        </section>
+
+        <!-- 画面③：イントロ（曲選択後） -->
         <section id="screen-intro" class="opening-screen hidden">
             <div class="opening-inner opening-intro">
-                <h2 class="opening-heading">この世界について</h2>
-                <p>この世界は、音楽とともに少しずつ姿を変えていきます。</p>
-                <p>気になったものがあれば、触れてみてください。</p>
-                <p>世界が小さな反応を返すかもしれません。</p>
-                <p>時間によってその反応が変化することもあります。</p>
+                <div class="opening-label" id="intro-award"></div>
+                <h2 class="opening-heading" id="intro-title"></h2>
+                <p class="intro-artist" id="intro-artist"></p>
                 <button id="btn-intro-start" class="opening-button" type="button" disabled>
                     クリックして歌を聴く
                 </button>
                 <p id="intro-status" class="opening-status">楽曲を読み込んでいます…</p>
             </div>
         </section>
+
     </div>
 
     <script type="module" src="./main.js"></script>

@@ -155,10 +155,11 @@ export class LyricsManager {
     }
 
     _updateFallingChars(deltaMs, canvasH) {
+        const groundPx = canvasH * 0.80; // 地面より下には行かせない
         this._fallingChars = this._fallingChars.filter(fc => {
             fc.y            += fc.speed * deltaMs * canvasH;
             fc.fallProgress  = Math.min(1, Math.max(0, fc.y / canvasH));
-            return fc.y < canvasH + fc.h;
+            return fc.y < groundPx;      // 地面に達したら消える
         });
     }
 
