@@ -14,7 +14,7 @@ export class LyricsManager {
     static PHRASE_LINGER_MS    = 8000;
     static FALL_AHEAD_MS       = 600;
     // 何フレーズに1回減点文字を出すか（平均）
-    static PENALTY_EVERY       = 6;
+    static PENALTY_EVERY       = 4;
     static PENALTY_COUNT       = 1;
     static PENALTY_POINTS      = 5;
 
@@ -90,10 +90,13 @@ export class LyricsManager {
             console.log('[LyricsManager] Phrase:', text.slice(0, 20));
 
             // 次のフレーズの startTime を探す
-            const idx      = this._phrases.indexOf(phrase);
+            const idx        = this._phrases.indexOf(phrase);
             const nextPhrase = this._phrases[idx + 1];
-            const endTime  = nextPhrase?.startTime
-                ?? (phrase.endTime || phrase.startTime + 4000);
+            // endTime: 次フレーズ開始 → phrase.endTime → フォールバック4秒
+            const endTime    = nextPhrase?.startTime
+                ?? (typeof phrase.endTime === 'number' && phrase.endTime > phrase.startTime
+                    ? phrase.endTime
+                    : phrase.startTime + 4000);
 
             this._displayPhrases.push({
                 text,
@@ -116,11 +119,17 @@ export class LyricsManager {
     _checkFallTrigger(position, canvasW, canvasH) {
         for (const p of this._displayPhrases) {
             if (p.falling) continue;
-            const timeToEnd = p.endTime - position;
-            if (timeToEnd <= LyricsManager.FALL_AHEAD_MS) {
+
+            const timeToEnd      = p.endTime - position;
+            // 次フレーズまで FALL_AHEAD_MS 以内、または表示開始から3秒経過で強制落下
+            const displayedMs    = position - p.addedAt;
+            const shouldFall     = timeToEnd <= LyricsManager.FALL_AHEAD_MS
+                                || displayedMs >= 3000;
+
+            if (shouldFall) {
                 p.falling = true;
                 this._spawnFallingChars(p, canvasW, canvasH);
-                p.text = ''; // 表示から消す
+                p.text = '';
             }
         }
     }
