@@ -1,4 +1,3 @@
-
 :root {
     color-scheme: dark;
     font-family: "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
@@ -6,12 +5,9 @@
     color: #f5f5f7;
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-html,
-body {
+html, body {
     width: 100%;
     min-height: 100%;
     margin: 0;
@@ -24,13 +20,9 @@ body {
         #10121c;
 }
 
-button {
-    font: inherit;
-}
+button { font: inherit; }
 
-.hidden {
-    display: none !important;
-}
+.hidden { display: none !important; }
 
 #media {
     position: fixed;
@@ -54,9 +46,10 @@ button {
 #app {
     position: relative;
     min-height: 100vh;
-    padding: 40px 0;
+    padding: 24px 0 32px;
 }
 
+/* ── オープニング画面 ── */
 .opening-screen {
     position: fixed;
     inset: 0;
@@ -94,9 +87,7 @@ button {
     line-height: 1.9;
 }
 
-.opening-credits p {
-    margin: 8px 0;
-}
+.opening-credits p { margin: 8px 0; }
 
 .opening-credits span {
     display: block;
@@ -147,23 +138,24 @@ button {
     line-height: 1.7;
 }
 
+/* ── 波形パネル（画面の大部分を占めるように拡大） ── */
 .waveform-panel {
     position: relative;
-    width: min(1100px, calc(100% - 40px));
+    width: min(1400px, calc(100% - 24px));
     margin: 0 auto;
-    padding: 32px 0 48px;
+    padding: 20px 0 32px;
 }
 
 .waveform-heading {
     display: flex;
-    align-items: end;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 20px;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
 }
 
 .waveform-heading .eyebrow {
-    margin: 0 0 8px;
+    margin: 0 0 6px;
     color: #70d6ff;
     font-size: 0.75rem;
     letter-spacing: 0.2em;
@@ -174,30 +166,43 @@ button {
     font-size: clamp(1.2rem, 3vw, 1.8rem);
 }
 
+.waveform-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
 #waveform-time {
     color: #c2c5d4;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
 
+.jump-hint {
+    color: #70d6ff;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    opacity: 0.75;
+}
+
+/* ── Canvas を画面の大部分に ── */
 .waveform-frame {
     position: relative;
     width: 100%;
-    height: clamp(160px, 30vw, 280px);
+    /* 画面高さの 70% を使う（ゲームフィールドとして十分な高さ） */
+    height: clamp(300px, 70vh, 640px);
     overflow: hidden;
-    border: 1px solid rgba(112, 214, 255, 0.2);
-    border-radius: 14px;
-    background:
-        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
-        #171a29;
-    background-size: 24px 24px;
+    border: 1px solid rgba(112, 214, 255, 0.15);
+    border-radius: 12px;
+    background: #0d1117;
 }
 
 #waveform-canvas {
     display: block;
     width: 100%;
     height: 100%;
+    cursor: pointer; /* タップでジャンプできることを示す */
 }
 
 .waveform-placeholder {
@@ -213,24 +218,102 @@ button {
 }
 
 .waveform-note {
-    margin: 12px 0 0;
+    margin: 10px 0 0;
     color: #858ba3;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
 }
 
 @media (max-width: 600px) {
     .waveform-panel {
-        width: calc(100% - 28px);
-        padding-top: 22px;
+        width: calc(100% - 16px);
+        padding-top: 16px;
     }
 
     .waveform-heading {
-        align-items: start;
+        align-items: flex-start;
         flex-direction: column;
-        gap: 10px;
+        gap: 8px;
     }
 
     .waveform-frame {
-        height: 180px;
+        height: clamp(260px, 60vh, 400px);
     }
 }
+
+/* ── タッチコントローラー ── */
+.touch-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 4px 4px;
+}
+
+.touch-left,
+.touch-right,
+.touch-center {
+    display: flex;
+    gap: 8px;
+}
+
+.touch-center {
+    flex: 1;
+    justify-content: center;
+}
+
+.touch-btn {
+    min-width: 64px;
+    height: 52px;
+    padding: 0 20px;
+    border: 1.5px solid rgba(112, 214, 255, 0.5);
+    border-radius: 12px;
+    background: rgba(112, 214, 255, 0.10);
+    color: #c2d8ff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    transition: background 80ms, transform 80ms;
+    /* タップのハイライトを消す */
+    -webkit-tap-highlight-color: transparent;
+}
+
+.touch-btn:active,
+.touch-btn.pressed {
+    background: rgba(112, 214, 255, 0.28);
+    transform: scale(0.94);
+}
+
+.touch-btn-jump {
+    min-width: 100px;
+    border-color: rgba(244, 211, 94, 0.6);
+    background: rgba(244, 211, 94, 0.10);
+    color: #f4d35e;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+}
+
+.touch-btn-jump:active,
+.touch-btn-jump.pressed {
+    background: rgba(244, 211, 94, 0.28);
+}
+
+/* PC では小さめに、スマホでは大きめに */
+@media (max-width: 600px) {
+    .touch-btn {
+        height: 60px;
+        min-width: 72px;
+        font-size: 1.3rem;
+    }
+    .touch-btn-jump {
+        min-width: 110px;
+        font-size: 0.95rem;
+    }
+}
+
+/* PC のみ非表示にするオプション（コメントアウトで常時表示） */
+/* @media (hover: hover) and (pointer: fine) {
+    .touch-controls { display: none; }
+} */

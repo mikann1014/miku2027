@@ -1,9 +1,8 @@
-```html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>世界最後の音楽隊</title>
     <link rel="stylesheet" href="./style.css">
 
@@ -18,7 +17,6 @@
 
 <body>
     <div id="media"></div>
-
     <div id="status">CONNECTING TO MUSIC...</div>
 
     <main id="app">
@@ -28,7 +26,9 @@
                     <p class="eyebrow">MUSIC VISUALIZATION</p>
                     <h2>世界最後の音楽隊</h2>
                 </div>
-                <span id="waveform-time">0:00 / 0:00</span>
+                <div class="waveform-controls">
+                    <span id="waveform-time">0:00 / 0:00</span>
+                </div>
             </div>
 
             <div class="waveform-frame">
@@ -38,9 +38,18 @@
                 </div>
             </div>
 
-            <p class="waveform-note">
-                歌声の振幅に基づく波形表示
-            </p>
+            <!-- スマホ用タッチコントローラー -->
+            <div id="touch-controls" class="touch-controls">
+                <div class="touch-left">
+                    <button id="btn-left" class="touch-btn" type="button">◀</button>
+                </div>
+                <div class="touch-center">
+                    <button id="btn-jump" class="touch-btn touch-btn-jump" type="button">JUMP</button>
+                </div>
+                <div class="touch-right">
+                    <button id="btn-right" class="touch-btn" type="button">▶</button>
+                </div>
+            </div>
         </section>
     </main>
 
@@ -50,20 +59,16 @@
                 <div class="opening-label">
                     初音ミク「マジカルミライ 2026」楽曲コンテスト応募作品
                 </div>
-
                 <h1 class="opening-title">世界最後の音楽隊</h1>
-
                 <div class="opening-credits">
                     <p><span>Lyrics &amp; Music</span>夏山よつぎ</p>
                     <p><span>Arrangement &amp; Mix</span>ど〜ぱみん</p>
                     <p><span>Vocal</span>初音ミク</p>
                     <p><span>Chorus</span>MEIKO / KAITO / 鏡音リン / 鏡音レン / 巡音ルカ</p>
                 </div>
-
                 <button id="btn-title-connect" class="opening-button" type="button">
                     クリックして接続
                 </button>
-
                 <p id="status-title" class="opening-status"></p>
             </div>
         </section>
@@ -71,19 +76,14 @@
         <section id="screen-intro" class="opening-screen hidden">
             <div class="opening-inner opening-intro">
                 <h2 class="opening-heading">この世界について</h2>
-
                 <p>この世界は、音楽とともに少しずつ姿を変えていきます。</p>
                 <p>気になったものがあれば、触れてみてください。</p>
                 <p>世界が小さな反応を返すかもしれません。</p>
                 <p>時間によってその反応が変化することもあります。</p>
-
                 <button id="btn-intro-start" class="opening-button" type="button" disabled>
                     クリックして歌を聴く
                 </button>
-
-                <p id="intro-status" class="opening-status">
-                    楽曲を読み込んでいます…
-                </p>
+                <p id="intro-status" class="opening-status">楽曲を読み込んでいます…</p>
             </div>
         </section>
     </div>
@@ -91,4 +91,3 @@
     <script type="module" src="./main.js"></script>
 </body>
 </html>
-```

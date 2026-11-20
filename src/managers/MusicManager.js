@@ -1,4 +1,3 @@
-
 import { Player } from 'textalive-app-api';
 
 export class MusicManager {
@@ -201,6 +200,65 @@ export class MusicManager {
         });
     }
 
+    /**
+     * 歌詞フレーズの一覧を player.video.phrases から取得する。
+     *
+     * IVideo.phrases は IPhrase[] の配列として直接アクセスできる。
+     * firstPhrase からのリンクリスト走査は不要。
+     *
+     * @returns {IPhrase[]}
+     */
+    getLyricsPhrases() {
+        const video = this.player?.video;
+
+        if (!video) {
+            console.warn('[MusicManager] video is not available.');
+            return [];
+        }
+
+        // video.phrases の型と中身をログに出してデバッグする
+        console.log('[MusicManager] video.phrases type:', typeof video.phrases);
+        console.log('[MusicManager] video.phrases isArray:', Array.isArray(video.phrases));
+        console.log('[MusicManager] video.phrases value:', video.phrases);
+        console.log('[MusicManager] video.phraseCount:', video.phraseCount);
+        console.log('[MusicManager] video.firstPhrase:', video.firstPhrase);
+
+        // phrases が配列でない場合（独自のコレクション型など）も考慮して
+        // phraseCount と getPhrase() による取得にフォールバックする
+        if (Array.isArray(video.phrases) && video.phrases.length > 0) {
+            console.log('[MusicManager] Phrase count (array):', video.phrases.length);
+            return video.phrases;
+        }
+
+        // getPhrase(index) API でのフォールバック
+        if (typeof video.phraseCount === 'number' && video.phraseCount > 0) {
+            console.log('[MusicManager] Phrase count (getPhrase fallback):', video.phraseCount);
+            const phrases = [];
+            for (let i = 0; i < video.phraseCount; i++) {
+                const p = video.getPhrase(i);
+                if (p) {
+                    phrases.push(p);
+                }
+            }
+            return phrases;
+        }
+
+        console.warn('[MusicManager] No phrase data could be retrieved.');
+        return [];
+    }
+
+    /**
+     * 波形サンプルデータを返す。
+     *
+     * 歌詞フレーズが取得できている場合は、
+     * フレーズ区間外のサンプルを 0 に置き換えることで
+     * 「歌声のある部分だけ」が視覚的に浮かび上がる波形を生成する。
+     *
+     * フレーズ情報が取得できない場合は従来通り全区間を返す。
+     *
+     * @param {number} sampleCount - サンプル数（デフォルト 700）
+     * @returns {number[] | null}
+     */
     getWaveformData(sampleCount = 700) {
         if (
             !this.player ||
@@ -213,7 +271,7 @@ export class MusicManager {
             return null;
         }
 
-        const duration = this.getDuration();
+        const duration     = this.getDuration();
         const maxAmplitude = this.player.getMaxVocalAmplitude();
 
         console.log('[Waveform] Duration:', duration);
@@ -228,10 +286,31 @@ export class MusicManager {
             return null;
         }
 
+        // 歌詞フレーズ一覧を取得する。
+        // 空の場合はフレーズ情報なしとみなし、全区間を有効として扱う。
+        const phrases      = this.getLyricsPhrases();
+        const hasPhraseData = phrases.length > 0;
+
+        if (hasPhraseData) {
+            console.log('[Waveform] Applying lyrics phrase mask.');
+        } else {
+            console.warn(
+                '[Waveform] No phrase data available. Using full waveform.'
+            );
+        }
+
         const values = [];
 
         for (let i = 0; i < sampleCount; i++) {
             const time = (i / (sampleCount - 1)) * duration;
+
+            // 歌詞区間マスク：
+            // IPhrase.contains(time) を使っていずれかのフレーズ区間に
+            // 含まれない時刻の振幅を 0 にする
+            if (hasPhraseData && !phrases.some(p => p.contains(time))) {
+                values.push(0);
+                continue;
+            }
 
             try {
                 const amplitude = this.player.getVocalAmplitude(time);
@@ -258,10 +337,44 @@ export class MusicManager {
             }
         }
 
-        console.log('[Waveform] Sample count:', values.length);
-        console.log('[Waveform] First samples:', values.slice(0, 10));
+        // ── スムージング（移動平均）──────────────────────────────
+        // 隣接サンプル間の急激な変化を緩和する。
+        // ただし 0 のサンプル（歌詞なし区間）は平均に含めない。
+        // これにより歌詞区間の境界がぼやけず、区間内だけが滑らかになる。
+        const smoothed = new Array(values.length);
+        const halfWindow = 4; // 前後 4 サンプル（計9点）で平均
 
-        return values;
+        for (let i = 0; i < values.length; i++) {
+            // 歌詞なし区間（0）はそのまま
+            if (values[i] === 0) {
+                smoothed[i] = 0;
+                continue;
+            }
+
+            let sum   = 0;
+            let count = 0;
+
+            for (let j = i - halfWindow; j <= i + halfWindow; j++) {
+                if (j < 0 || j >= values.length) {
+                    continue;
+                }
+
+                // 歌詞なし区間のサンプルは平均に含めない
+                if (values[j] === 0) {
+                    continue;
+                }
+
+                sum += values[j];
+                count++;
+            }
+
+            smoothed[i] = count > 0 ? sum / count : 0;
+        }
+
+        console.log('[Waveform] Sample count:', smoothed.length);
+        console.log('[Waveform] First samples:', smoothed.slice(0, 10));
+
+        return smoothed;
     }
 
     async startPreparedSong() {

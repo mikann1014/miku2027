@@ -1,171 +1,189 @@
+import { MusicManager }      from './managers/MusicManager.js';
+import { UIManager }         from './ui/UIManager.js';
+import { TerrainRenderer }   from './rendering/TerrainRenderer.js';
+import { CharacterRenderer } from './rendering/CharacterRenderer.js';
+import { GameManager }       from './game/GameManager.js';
+import { LyricsManager }     from './game/LyricsManager.js';
 
-import { MusicManager } from './managers/MusicManager.js';
-import { UIManager } from './ui/UIManager.js';
-
-// 現在利用しているTextAliveのアプリトークンを設定してください。
 const APP_TOKEN = 'mq3mY1ymOq67ss5i';
 
-const musicManager = new MusicManager(APP_TOKEN, '#media');
+// ─── インスタンス生成 ─────────────────────────────────────────
+const musicManager    = new MusicManager(APP_TOKEN, '#media');
+const terrainRenderer = new TerrainRenderer('#waveform-canvas');
+const charRenderer    = new CharacterRenderer();
+const gameManager     = new GameManager();
+const lyricsManager   = new LyricsManager();
 
-const canvas = document.querySelector('#waveform-canvas');
+terrainRenderer.setGameManager(gameManager);
+terrainRenderer.setCharacterRenderer(charRenderer);
+terrainRenderer.setLyricsManager(lyricsManager);
+
 const placeholder = document.querySelector('#waveform-placeholder');
-const timeLabel = document.querySelector('#waveform-time');
-const ctx = canvas?.getContext('2d');
+const timeLabel   = document.querySelector('#waveform-time');
 
 let uiManager;
 
-let waveformData = null;
-let currentProgress = 0;
-let duration = 0;
-let waveformReady = false;
-let waveformAttempts = 0;
-let waveformRetryTimer = null;
+// ─── 波形データ読み込み管理 ───────────────────────────────────
+let duration              = 0;
+let waveformReady         = false;
+let waveformAttempts      = 0;
+let waveformRetryTimer    = null;
+let isVocalAmplitudeReady = false;
+let isTextReady           = false;
 
-const MAX_WAVEFORM_ATTEMPTS = 60;
+const MAX_WAVEFORM_ATTEMPTS   = 60;
 const WAVEFORM_RETRY_INTERVAL = 500;
 
+// ─── UI 初期化 ────────────────────────────────────────────────
 uiManager = new UIManager({
     onTitleConnect: handleTitleConnect,
-    onIntroStart: handleIntroStart
+    onIntroStart:   handleIntroStart
 });
 
 uiManager.showTitleScreen();
 
 console.log('[Main] Initializing Application...');
 
+// ─── MusicManager イベント ────────────────────────────────────
 musicManager.init({
     onAppReady: () => {
         console.log('[Main] TextAlive App Ready.');
-        uiManager.setTitleStatus(
-            '接続しました。「クリックして接続」を押してください。'
-        );
+        uiManager.setTitleStatus('接続しました。「クリックして接続」を押してください。');
         uiManager.setConnectButtonEnabled(true);
     },
 
-    onVideoReady: () => {
+    onVideoReady: (video) => {
         duration = musicManager.getDuration();
-
         console.log('[Main] Video Ready. Duration:', duration);
-
         updateTimeLabel(0, duration);
+        // onTextLoad より先に phrases が使える場合に備えて渡す
+        if (video?.phrases?.length) {
+            lyricsManager.setPhrases(video.phrases);
+            console.log('[Main] Phrases from onVideoReady:', video.phrases.length);
+        }
     },
 
-    onTextLoad: () => {
+    onTextLoad: (video) => {
         console.log('[Main] Text loaded.');
+        isTextReady = true;
+        if (video?.phrases?.length) {
+            lyricsManager.setPhrases(video.phrases);
+            console.log('[Main] Phrases from onTextLoad:', video.phrases.length);
+        }
+        tryBuildWaveform();
     },
 
     onLoadComplete: () => {
         duration = musicManager.getDuration();
-
         console.log('[Main] Music load complete.');
-        console.log(
-            '[Main] Vocal amplitude loaded:',
-            musicManager.isVocalAmplitudeLoaded
-        );
-
-        uiManager.setIntroStatus('波形データを準備しています…');
-        uiManager.setStartButtonEnabled(true);
-        uiManager.showWaveform();
-
-        resizeCanvas();
-        updateTimeLabel(0, duration);
-
         tryBuildWaveform();
     },
 
     onVocalAmplitudeLoad: loaded => {
         console.log('[Main] Vocal amplitude callback:', loaded);
-
         if (loaded) {
+            isVocalAmplitudeReady = true;
             waveformAttempts = 0;
             tryBuildWaveform();
         } else {
-            showWaveformMessage(
-                '歌声の振幅データを取得できませんでした。Consoleを確認してください。'
-            );
+            showWaveformMessage('歌声の振幅データを取得できませんでした。Consoleを確認してください。');
         }
     },
 
     onPlay: () => {
         console.log('[Main] Playback started.');
+        uiManager.setGlobalStatus('PLAYING');
+        terrainRenderer.play();
     },
 
     onPause: () => {
         console.log('[Main] Playback paused.');
+        uiManager.setGlobalStatus('PAUSED');
+        terrainRenderer.pause();
     },
 
     onSeek: position => {
         const currentDuration = musicManager.getDuration();
-
-        currentProgress = currentDuration > 0
-            ? position / currentDuration
-            : 0;
-
-        drawWaveform();
+        terrainRenderer.setPosition(position, currentDuration);
+        gameManager.setPosition(position, currentDuration);
+        terrainRenderer.drawOnce();
         updateTimeLabel(position, currentDuration);
     },
 
     onTimeUpdate: (position, progress, currentDuration) => {
-        currentProgress = progress;
         duration = currentDuration;
-
-        drawWaveform();
+        terrainRenderer.setPosition(position, currentDuration);
+        gameManager.setPosition(position, currentDuration);
         updateTimeLabel(position, duration);
+
+        // 歌詞管理を更新してレンダラーに状態を渡す
+        const canvas = document.querySelector('#waveform-canvas');
+        if (canvas) {
+            lyricsManager.update(position, 16, canvas.clientWidth, canvas.clientHeight);
+        }
+        const lyricsState = lyricsManager.getState();
+        terrainRenderer.setLyricsState(lyricsState);
+        // isFinished は state から取得するので setFinished は不要
+        terrainRenderer.setFinished(lyricsState.isFinished);
+
+        // 曲終了判定（残り1秒以内）
+        if (currentDuration > 0 && position >= currentDuration - 1000) {
+            lyricsManager.setFinished();
+        }
     }
 });
 
+// ─── 画面遷移ハンドラ ─────────────────────────────────────────
+
 async function handleTitleConnect() {
     uiManager.setTitleStatus('楽曲を読み込んでいます…');
-
     await musicManager.prepareSong();
-
     duration = musicManager.getDuration();
-
     console.log('[Main] Music prepared.');
 
     uiManager.showIntroScreen();
     uiManager.setIntroStatus('波形データを準備しています…');
     uiManager.setStartButtonEnabled(true);
     uiManager.showWaveform();
-
-    resizeCanvas();
+    terrainRenderer.resize();
     updateTimeLabel(0, duration);
     tryBuildWaveform();
 }
 
 async function handleIntroStart() {
     uiManager.setIntroStatus('再生を開始しています…');
-
     await musicManager.startPreparedSong();
-
     console.log('[Main] Music started.');
 
     uiManager.hideOpeningScreens();
     uiManager.showWaveform();
-
-    resizeCanvas();
-    drawWaveform();
+    terrainRenderer.resize();
+    syncVisibleBars();
+    terrainRenderer.drawOnce();
 }
 
+// ─── 波形データ構築 ───────────────────────────────────────────
+
 function tryBuildWaveform() {
-    if (waveformReady) {
-        drawWaveform();
-        return;
-    }
+    if (waveformReady) { terrainRenderer.drawOnce(); return; }
 
     if (!musicManager.isLoaded) {
         console.log('[Waveform] Waiting for video data.');
         scheduleWaveformRetry();
         return;
     }
-
-    if (!musicManager.isVocalAmplitudeLoaded) {
+    if (!isVocalAmplitudeReady) {
         console.log('[Waveform] Waiting for vocal amplitude data.');
         scheduleWaveformRetry();
         return;
     }
+    if (!isTextReady) {
+        console.log('[Waveform] Waiting for lyrics phrase data.');
+        scheduleWaveformRetry();
+        return;
+    }
 
-    const values = musicManager.getWaveformData(700);
+    const values = musicManager.getWaveformData(4800);
 
     if (!values || values.length < 2) {
         console.warn('[Waveform] Amplitude samples are not ready.');
@@ -173,177 +191,106 @@ function tryBuildWaveform() {
         return;
     }
 
-    waveformData = values;
     waveformReady = true;
+    if (waveformRetryTimer !== null) { clearTimeout(waveformRetryTimer); waveformRetryTimer = null; }
+    console.log('[Waveform] Build complete.');
+    if (placeholder) { placeholder.classList.add('hidden'); }
 
-    if (waveformRetryTimer !== null) {
-        clearTimeout(waveformRetryTimer);
-        waveformRetryTimer = null;
+    terrainRenderer.setWaveformData(values);
+    gameManager.setWaveformData(values);
+
+    const panel = document.querySelector('#waveform-panel');
+    if (panel && !panel.classList.contains('hidden')) {
+        terrainRenderer.resize();
+    } else {
+        terrainRenderer.drawOnce();
     }
-
-    console.log('[Waveform] Drawing completed.');
-
-    if (placeholder) {
-        placeholder.classList.add('hidden');
-    }
-
-    resizeCanvas();
-    drawWaveform();
 }
 
 function scheduleWaveformRetry() {
-    if (waveformReady || waveformRetryTimer !== null) {
-        return;
-    }
-
+    if (waveformReady || waveformRetryTimer !== null) return;
     if (waveformAttempts >= MAX_WAVEFORM_ATTEMPTS) {
-        showWaveformMessage(
-            '波形データを取得できませんでした。Consoleのエラーを確認してください。'
-        );
+        showWaveformMessage('波形データを取得できませんでした。Consoleのエラーを確認してください。');
         console.error('[Waveform] Retry limit reached.');
         return;
     }
-
     waveformAttempts++;
-
-    waveformRetryTimer = setTimeout(() => {
-        waveformRetryTimer = null;
-        tryBuildWaveform();
-    }, WAVEFORM_RETRY_INTERVAL);
+    waveformRetryTimer = setTimeout(() => { waveformRetryTimer = null; tryBuildWaveform(); }, WAVEFORM_RETRY_INTERVAL);
 }
 
 function showWaveformMessage(message) {
-    if (placeholder) {
-        placeholder.textContent = message;
-        placeholder.classList.remove('hidden');
-    }
+    if (placeholder) { placeholder.textContent = message; placeholder.classList.remove('hidden'); }
 }
 
-function resizeCanvas() {
-    if (!canvas || !ctx) {
-        console.error('[Waveform] Canvas element or context is missing.');
-        return;
-    }
-
-    const rect = canvas.getBoundingClientRect();
-
-    if (rect.width <= 0 || rect.height <= 0) {
-        console.warn('[Waveform] Canvas has no visible dimensions.');
-        return;
-    }
-
-    const pixelRatio = window.devicePixelRatio || 1;
-
-    canvas.width = Math.floor(rect.width * pixelRatio);
-    canvas.height = Math.floor(rect.height * pixelRatio);
-
-    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-
-    drawWaveform();
-}
-
-function drawWaveform() {
-    if (!canvas || !ctx) {
-        return;
-    }
-
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-
-    if (width <= 0 || height <= 0) {
-        return;
-    }
-
-    ctx.clearRect(0, 0, width, height);
-
-    const centerY = height / 2;
-
-    ctx.beginPath();
-    ctx.moveTo(0, centerY);
-    ctx.lineTo(width, centerY);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    if (!waveformReady || !waveformData?.length) {
-        return;
-    }
-
-    const barCount = Math.min(
-        waveformData.length,
-        Math.max(1, Math.floor(width / 3))
-    );
-
-    const step = waveformData.length / barCount;
-    const barWidth = Math.max(1, width / barCount - 1);
-    const maxBarHeight = height * 0.43;
-
-    for (let i = 0; i < barCount; i++) {
-        const dataIndex = Math.min(
-            waveformData.length - 1,
-            Math.floor(i * step)
-        );
-
-        const amplitude = waveformData[dataIndex];
-
-        // 小さい振幅も視認できるように最小の高さを設定
-        const barHeight = Math.max(
-            2,
-            amplitude * maxBarHeight
-        );
-
-        const x = i * (width / barCount);
-        const isPlayed = i / Math.max(1, barCount - 1) <= currentProgress;
-
-        ctx.fillStyle = isPlayed ? '#f4d35e' : '#70d6ff';
-
-        ctx.fillRect(
-            x,
-            centerY - barHeight,
-            barWidth,
-            barHeight
-        );
-
-        ctx.fillRect(
-            x,
-            centerY,
-            barWidth,
-            barHeight
-        );
-    }
-
-    const playheadX = Math.max(
-        0,
-        Math.min(width, currentProgress * width)
-    );
-
-    ctx.beginPath();
-    ctx.moveTo(playheadX, 0);
-    ctx.lineTo(playheadX, height);
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-}
+// ─── 時間表示 ─────────────────────────────────────────────────
 
 function updateTimeLabel(position, totalDuration) {
-    if (!timeLabel) {
-        return;
+    if (!timeLabel) return;
+    timeLabel.textContent = `${formatTime(position)} / ${formatTime(totalDuration)}`;
+}
+
+function formatTime(ms) {
+    const s = Math.max(0, Math.floor((ms || 0) / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// ─── 入力（ジャンプ） ─────────────────────────────────────────
+
+// キーボード
+window.addEventListener('keydown', e => {
+    // W / Space でジャンプ
+    if (e.code === 'KeyW' || e.code === 'Space') {
+        e.preventDefault();
+        gameManager.jump();
     }
+    // A で左移動、D で右移動
+    if (e.code === 'KeyA') { e.preventDefault(); gameManager.setMoveLeft(true);  }
+    if (e.code === 'KeyD') { e.preventDefault(); gameManager.setMoveRight(true); }
+});
 
-    timeLabel.textContent =
-        `${formatTime(position)} / ${formatTime(totalDuration)}`;
+window.addEventListener('keyup', e => {
+    if (e.code === 'KeyA') gameManager.setMoveLeft(false);
+    if (e.code === 'KeyD') gameManager.setMoveRight(false);
+});
+
+// ─── タッチコントローラー ──────────────────────────────────────
+
+function setupTouchBtn(id, onStart, onEnd) {
+    const btn = document.querySelector(id);
+    if (!btn) return;
+
+    const start = e => { e.preventDefault(); btn.classList.add('pressed'); onStart(); };
+    const end   = e => { e.preventDefault(); btn.classList.remove('pressed'); if (onEnd) onEnd(); };
+
+    btn.addEventListener('touchstart',  start, { passive: false });
+    btn.addEventListener('touchend',    end,   { passive: false });
+    btn.addEventListener('touchcancel', end,   { passive: false });
+    btn.addEventListener('mousedown',   start);
+    btn.addEventListener('mouseup',     end);
+    btn.addEventListener('mouseleave',  end);
 }
 
-function formatTime(milliseconds) {
-    const totalSeconds = Math.max(
-        0,
-        Math.floor((milliseconds || 0) / 1000)
-    );
+setupTouchBtn('#btn-left',  () => gameManager.setMoveLeft(true),  () => gameManager.setMoveLeft(false));
+setupTouchBtn('#btn-right', () => gameManager.setMoveRight(true), () => gameManager.setMoveRight(false));
+setupTouchBtn('#btn-jump',  () => gameManager.jump(), null);
 
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
+// Canvas タップでもジャンプ（スマホで誤操作防止のため移動ボタン以外の場所に限定）
+document.querySelector('#waveform-canvas')?.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    gameManager.jump();
+});
 
-    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+// ─── リサイズ ─────────────────────────────────────────────────
+
+window.addEventListener('resize', () => {
+    terrainRenderer.resize();
+    // TerrainRenderer の visibleBars を GameManager に同期
+    gameManager.setVisibleBars(terrainRenderer._visibleBars);
+});
+
+// 初期同期
+function syncVisibleBars() {
+    if (terrainRenderer._visibleBars) {
+        gameManager.setVisibleBars(terrainRenderer._visibleBars);
+    }
 }
-
-window.addEventListener('resize', resizeCanvas);

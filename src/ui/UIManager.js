@@ -1,4 +1,3 @@
-
 export class UIManager {
     constructor(callbacks = {}) {
         this.callbacks = callbacks;
@@ -9,8 +8,12 @@ export class UIManager {
         this.connectButton = document.querySelector('#btn-title-connect');
         this.startButton = document.querySelector('#btn-intro-start');
 
-        this.statusElement = document.querySelector('#status');
+        // #status-title はタイトル画面内のステータス表示
+        this.titleStatusElement = document.querySelector('#status-title');
+        // #intro-status はイントロ画面内のステータス表示
         this.introStatusElement = document.querySelector('#intro-status');
+        // #status は画面左上の固定ステータス表示
+        this.globalStatusElement = document.querySelector('#status');
 
         this.waveformPanel = document.querySelector('#waveform-panel');
 
@@ -21,7 +24,7 @@ export class UIManager {
                 await this.callbacks.onTitleConnect?.();
             } catch (error) {
                 console.error(error);
-                this.setStatus(
+                this.setTitleStatus(
                     `接続または楽曲の読み込みに失敗しました。${error?.message || ''}`
                 );
                 this.connectButton.disabled = false;
@@ -62,15 +65,32 @@ export class UIManager {
         this.waveformPanel?.classList.remove('hidden');
     }
 
-    setStatus(message) {
-        if (this.statusElement) {
-            this.statusElement.textContent = message;
+    /**
+     * タイトル画面内（#status-title）のステータスメッセージを更新する。
+     * main.js の onAppReady / handleTitleConnect から呼ばれる。
+     */
+    setTitleStatus(message) {
+        if (this.titleStatusElement) {
+            this.titleStatusElement.textContent = message;
         }
     }
 
+    /**
+     * イントロ画面内（#intro-status）のステータスメッセージを更新する。
+     */
     setIntroStatus(message) {
         if (this.introStatusElement) {
             this.introStatusElement.textContent = message;
+        }
+    }
+
+    /**
+     * 画面左上の固定ステータス（#status）を更新する。
+     * 再生開始後など全画面共通の状態表示に使う。
+     */
+    setGlobalStatus(message) {
+        if (this.globalStatusElement) {
+            this.globalStatusElement.textContent = message;
         }
     }
 
