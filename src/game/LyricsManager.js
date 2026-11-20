@@ -15,7 +15,7 @@ export class LyricsManager {
     static FALL_AHEAD_MS       = 600;
     // 落下文字のうち何割を減点文字にするか（0.0〜1.0）
     static PENALTY_RATIO       = 0.25;
-    static PENALTY_POINTS      = 10;
+    static PENALTY_POINTS      = 5;
 
     constructor() {
         this._phrases        = [];

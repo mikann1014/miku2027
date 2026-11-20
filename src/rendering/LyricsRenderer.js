@@ -83,7 +83,7 @@ export class LyricsRenderer {
                 ctx.font      = `bold ${fontSize * 0.45}px "Helvetica Neue", Arial, sans-serif`;
                 ctx.fillStyle = 'rgba(255,100,100,0.9)';
                 ctx.shadowBlur = 0;
-                ctx.fillText('-10', fw.x, fw.y + fontSize * 0.8);
+                ctx.fillText('-5', fw.x, fw.y + fontSize * 0.8);
             } else {
                 // ── 通常文字：白→オレンジ ───────────────────
                 const startFrac = (fw.startY ?? 0) / (canvasH || 1);
