@@ -13,8 +13,10 @@ export class LyricsManager {
     static MAX_DISPLAY_PHRASES = 2;
     static PHRASE_LINGER_MS    = 8000;
     static FALL_AHEAD_MS       = 600;
-    // 落下文字のうち何割を減点文字にするか（0.0〜1.0）
-    static PENALTY_RATIO       = 0.25;
+    // 何フレーズに1回減点文字を出すか（平均）
+    static PENALTY_EVERY       = 3;
+    // 1回の出現で何文字を減点文字にするか
+    static PENALTY_COUNT       = 1;
     static PENALTY_POINTS      = 5;
 
     constructor() {
@@ -24,7 +26,8 @@ export class LyricsManager {
         this._processed      = new Set();
         this._fallingQueued  = new Set(); // 落下処理済みフレーズ
         this._isFinished     = false;
-        this._displayPhrases = []; // { text, addedAt, alpha, startTime, endTime }
+        this._displayPhrases  = [];
+        this._spawnCount      = 0; // 落下が発生した回数（減点タイミング管理用）
     }
 
     setPhrases(phrases) {
@@ -140,9 +143,21 @@ export class LyricsManager {
         const totalW = chars.length * charW;
         const startX = centerX - totalW / 2;
 
+        this._spawnCount++;
+
+        // PENALTY_EVERY フレーズに1回だけ PENALTY_COUNT 個の減点文字を出す
+        // 該当ターンにランダムなインデックスを選ぶ
+        const ispenaltyTurn = (this._spawnCount % LyricsManager.PENALTY_EVERY === 0);
+        const penaltyIndices = new Set();
+
+        if (ispenaltyTurn && chars.length > 0) {
+            // chars の中からランダムに PENALTY_COUNT 個選ぶ
+            const count = Math.min(LyricsManager.PENALTY_COUNT, chars.length);
+            const shuffled = [...Array(chars.length).keys()].sort(() => Math.random() - 0.5);
+            shuffled.slice(0, count).forEach(i => penaltyIndices.add(i));
+        }
+
         for (let ci = 0; ci < chars.length; ci++) {
-            // PENALTY_RATIO の確率で減点文字にする
-            const isPenalty = Math.random() < LyricsManager.PENALTY_RATIO;
             this._fallingChars.push({
                 text:     chars[ci],
                 x:        startX + ci * charW + charW / 2,
@@ -153,7 +168,7 @@ export class LyricsManager {
                 w:        charW,
                 h:        fontSize * 1.2,
                 fallProgress: 0,
-                isPenalty,
+                isPenalty: penaltyIndices.has(ci),
             });
         }
     }
