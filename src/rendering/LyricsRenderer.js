@@ -55,27 +55,54 @@ export class LyricsRenderer {
         for (const fw of words) {
             const fontSize = fw.h / 1.2;
 
-            // startY（表示位置）から地面（groundY≒0.80）まで 0→1 に変化
-            const startFrac = (fw.startY ?? 0) / (canvasH || 1);
-            const t = Math.min(1, Math.max(0,
-                (fw.fallProgress - startFrac) / Math.max(0.01, 0.75 - startFrac)
-            ));
-
-            // 白(220,245,255) → オレンジ(255,140,0)
-            const r = Math.round(220 + t * (255 - 220));
-            const g = Math.round(245 - t * (245 - 140));
-            const b = Math.round(255 - t * 255);
-            const color    = `rgb(${r},${g},${b})`;
-            const glowColor = `rgba(${r},${g},${b},0.65)`;
-
             ctx.save();
             ctx.font         = `bold ${fontSize}px "Helvetica Neue", Arial, "Noto Sans JP", sans-serif`;
             ctx.textAlign    = 'center';
             ctx.textBaseline = 'middle';
-            ctx.shadowColor  = glowColor;
-            ctx.shadowBlur   = 12 + t * 6;  // 落ちるほど輝く
-            ctx.fillStyle    = color;
-            ctx.fillText(fw.text, fw.x, fw.y);
+
+            if (fw.isPenalty) {
+                // ── 減点文字：黒背景＋赤グロー ──────────────
+                // 背景の丸
+                ctx.fillStyle = 'rgba(20,0,0,0.85)';
+                ctx.beginPath();
+                ctx.arc(fw.x, fw.y, fontSize * 0.65, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 赤い枠
+                ctx.strokeStyle = 'rgba(220,40,40,0.8)';
+                ctx.lineWidth   = 1.5;
+                ctx.stroke();
+
+                // 文字
+                ctx.shadowColor = 'rgba(255,60,60,0.9)';
+                ctx.shadowBlur  = 10;
+                ctx.fillStyle   = '#ff4040';
+                ctx.fillText(fw.text, fw.x, fw.y);
+
+                // −10 ラベル（小さく）
+                ctx.font      = `bold ${fontSize * 0.45}px "Helvetica Neue", Arial, sans-serif`;
+                ctx.fillStyle = 'rgba(255,100,100,0.9)';
+                ctx.shadowBlur = 0;
+                ctx.fillText('-10', fw.x, fw.y + fontSize * 0.8);
+            } else {
+                // ── 通常文字：白→オレンジ ───────────────────
+                const startFrac = (fw.startY ?? 0) / (canvasH || 1);
+                const t = Math.min(1, Math.max(0,
+                    (fw.fallProgress - startFrac) / Math.max(0.01, 0.75 - startFrac)
+                ));
+
+                const r = Math.round(220 + t * (255 - 220));
+                const g = Math.round(245 - t * (245 - 140));
+                const b = Math.round(255 - t * 255);
+                const color     = `rgb(${r},${g},${b})`;
+                const glowColor = `rgba(${r},${g},${b},0.65)`;
+
+                ctx.shadowColor = glowColor;
+                ctx.shadowBlur  = 12 + t * 6;
+                ctx.fillStyle   = color;
+                ctx.fillText(fw.text, fw.x, fw.y);
+            }
+
             ctx.restore();
         }
     }

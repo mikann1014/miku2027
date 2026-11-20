@@ -483,3 +483,9 @@ button { font: inherit; }
     .song-info  { padding: 8px 12px; }
     .song-arrow { padding: 0 12px; }
 }
+
+/* ── タイトルロゴ ── */
+.title-accent {
+    color: #70d6ff;
+    text-shadow: 0 0 30px rgba(112,214,255,0.6);
+}

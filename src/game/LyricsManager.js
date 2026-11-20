@@ -12,8 +12,10 @@ export class LyricsManager {
     static WORD_SIZE_RATIO     = 0.048;
     static MAX_DISPLAY_PHRASES = 2;
     static PHRASE_LINGER_MS    = 8000;
-    // 次フレーズ開始の何ms前に落下を開始するか
     static FALL_AHEAD_MS       = 600;
+    // 落下文字のうち何割を減点文字にするか（0.0〜1.0）
+    static PENALTY_RATIO       = 0.25;
+    static PENALTY_POINTS      = 10;
 
     constructor() {
         this._phrases        = [];
@@ -45,7 +47,15 @@ export class LyricsManager {
             const hit =
                 charX < fc.x + hw && charX + charW > fc.x - hw &&
                 charY < fc.y + hh && charY + charH > fc.y - hh;
-            if (hit) { this._score++; hits++; }
+            if (hit) {
+                if (fc.isPenalty) {
+                    // 減点（0 未満にならないようにクランプ）
+                    this._score = Math.max(0, this._score - LyricsManager.PENALTY_POINTS);
+                } else {
+                    this._score++;
+                }
+                hits++;
+            }
             return !hit;
         });
         return hits;
@@ -131,16 +141,19 @@ export class LyricsManager {
         const startX = centerX - totalW / 2;
 
         for (let ci = 0; ci < chars.length; ci++) {
+            // PENALTY_RATIO の確率で減点文字にする
+            const isPenalty = Math.random() < LyricsManager.PENALTY_RATIO;
             this._fallingChars.push({
-                text:  chars[ci],
-                x:     startX + ci * charW + charW / 2,
-                y:     lineY,
-                startY: lineY,
-                speed: LyricsManager.FALL_SPEED_MIN +
-                       Math.random() * (LyricsManager.FALL_SPEED_MAX - LyricsManager.FALL_SPEED_MIN),
-                w:     charW,
-                h:     fontSize * 1.2,
+                text:     chars[ci],
+                x:        startX + ci * charW + charW / 2,
+                y:        lineY,
+                startY:   lineY,
+                speed:    LyricsManager.FALL_SPEED_MIN +
+                          Math.random() * (LyricsManager.FALL_SPEED_MAX - LyricsManager.FALL_SPEED_MIN),
+                w:        charW,
+                h:        fontSize * 1.2,
                 fallProgress: 0,
+                isPenalty,
             });
         }
     }
