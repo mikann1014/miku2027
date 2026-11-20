@@ -14,8 +14,7 @@ export class LyricsManager {
     static PHRASE_LINGER_MS    = 8000;
     static FALL_AHEAD_MS       = 600;
     // 何フレーズに1回減点文字を出すか（平均）
-    static PENALTY_EVERY       = 3;
-    // 1回の出現で何文字を減点文字にするか
+    static PENALTY_EVERY       = 6;
     static PENALTY_COUNT       = 1;
     static PENALTY_POINTS      = 5;
 
